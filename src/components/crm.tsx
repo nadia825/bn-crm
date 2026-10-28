@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   LayoutDashboard,
   Building2,
@@ -20,6 +20,7 @@ import {
   PanelLeftOpen,
   ChevronRight,
   ChevronDown,
+  Check,
   Plus,
   HelpCircle,
   ArrowUpRight,
@@ -43,46 +44,45 @@ import {
 import { Badge, Input } from "./ui/primitives";
 import { Avatar, AccountLogo, EmptyState } from "./shared";
 import { Dashboard } from "./dashboard";
+import { WorkspaceDashboard } from "./workspace-dashboard";
+import {
+  WORKSPACES,
+  navigationFor,
+  scopedItems,
+  isWorkspace,
+  parseRoute,
+  routeHash,
+  workspaceForPage,
+  isSharedPage,
+  type WorkspaceId,
+  type WorkspaceRoute,
+} from "@/lib/workspaces";
 import { Accounts, AccountProfile } from "./accounts";
 import { Pipeline, WorkBoard, WorkDetail } from "./boards";
 import { EditorDialog, type Editor } from "./forms";
 import { Onboarding } from "./onboarding";
 import { Barrels, Contacts, Reports, Settings } from "./secondary";
-const nav = [
-  {
-    section: "Overview",
-    items: [{ name: "Dashboard", icon: LayoutDashboard }],
-  },
-  {
-    section: "CRM",
-    items: [
-      { name: "Accounts", icon: Building2 },
-      { name: "Contacts", icon: Users },
-      { name: "Affiliate Pipeline", icon: GitBranch },
-      { name: "Supplier Pipeline", icon: Truck },
-      { name: "Brand Onboarding", icon: Rocket },
-    ],
-  },
-  {
-    section: "Operations",
-    items: [
-      { name: "Work Board", icon: Columns3 },
-      { name: "Support Cases", icon: Headset },
-      { name: "Tasks", icon: ListTodo },
-      { name: "Barrel Management", icon: Cylinder },
-    ],
-  },
-  {
-    section: "Analytics",
-    items: [{ name: "Reports", icon: ChartNoAxesCombined }],
-  },
-  {
-    section: "Administration",
-    items: [{ name: "Settings", icon: SettingsIcon }],
-  },
-];
-const names = nav.flatMap((n) => n.items.map((i) => i.name));
-const slug = (s: string) => s.toLowerCase().replaceAll(" ", "-");
+const pageIcons: Record<string, typeof Building2> = {
+  Dashboard: LayoutDashboard,
+  Accounts: Building2,
+  Contacts: Users,
+  "Affiliate Pipeline": GitBranch,
+  "Supplier Pipeline": Truck,
+  "Brand Onboarding": Rocket,
+  "Work Board": Columns3,
+  "Support Cases": Headset,
+  Tasks: ListTodo,
+  "Barrel Management": Cylinder,
+  Reports: ChartNoAxesCombined,
+  Settings: SettingsIcon,
+  "Company Overview": Building2,
+};
+const workspaceIcons = {
+  brands: Building2,
+  affiliates: Users,
+  operations: Columns3,
+};
+const NAVIGATION_KEY = "bn-crm-navigation";
 export function CRM() {
   return (
     <StoreProvider>
@@ -93,7 +93,22 @@ export function CRM() {
 }
 function Workspace() {
   const { data, setData, ready } = useStore();
-  const [page, setPage] = useState("Dashboard");
+  const [route, setRoute] = useState<WorkspaceRoute>({
+    workspace: "brands",
+    page: "Dashboard",
+  });
+  const { workspace, page } = route;
+  const workspaceInfo = WORKSPACES[workspace];
+  const WorkspaceIcon = workspaceIcons[workspace];
+  const nav = navigationFor(workspace).map((g) => ({
+    ...g,
+    items: g.items.map((i) => ({
+      name: i.page,
+      label: i.label,
+      icon: pageIcons[i.page] || Building2,
+    })),
+  }));
+  const [onboardingId, setOnboardingId] = useState<string | undefined>();
   const [collapsed, setCollapsed] = useState(false);
   const [accountId, setAccountId] = useState<string | null>(null);
   const [selected, setSelected] = useState<{
@@ -105,12 +120,39 @@ function Workspace() {
   const [query, setQuery] = useState("");
   const [notifications, setNotifications] = useState(false);
   const [switcher, setSwitcher] = useState(false);
+  const switcherRef = useRef<HTMLDivElement>(null);
   const [help, setHelp] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   useEffect(() => {
+    if (!switcher) return;
+    const outside = (e: PointerEvent) => {
+      if (!switcherRef.current?.contains(e.target as Node)) setSwitcher(false);
+    };
+    const escape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setSwitcher(false);
+        switcherRef.current?.querySelector("button")?.focus();
+      }
+    };
+    document.addEventListener("pointerdown", outside);
+    document.addEventListener("keydown", escape);
+    return () => {
+      document.removeEventListener("pointerdown", outside);
+      document.removeEventListener("keydown", escape);
+    };
+  }, [switcher]);
+  useEffect(() => {
     const sync = () => {
-      const name = names.find((n) => slug(n) === window.location.hash.slice(1));
-      if (name) setPage(name);
+      let preferred: WorkspaceId = "brands";
+      try {
+        const saved = localStorage.getItem(NAVIGATION_KEY);
+        if (isWorkspace(saved)) preferred = saved;
+      } catch {}
+      const next = parseRoute(window.location.hash, preferred);
+      setRoute(next);
+      try {
+        localStorage.setItem(NAVIGATION_KEY, next.workspace);
+      } catch {}
     };
     sync();
     window.addEventListener("hashchange", sync);
@@ -129,12 +171,32 @@ function Workspace() {
     window.addEventListener("keydown", fn);
     return () => window.removeEventListener("keydown", fn);
   }, []);
-  const navigate = (s: string) => {
-    setPage(s);
-    window.location.hash = slug(s);
+  const navigate = (s: string, preferred: WorkspaceId = workspace) => {
+    const target = workspaceForPage(s, preferred);
+    const next = { workspace: target, page: s };
+    setRoute(next);
+    try {
+      localStorage.setItem(NAVIGATION_KEY, target);
+    } catch {}
+    window.location.hash = routeHash(next);
     setMobileOpen(false);
     setSwitcher(false);
     window.scrollTo({ top: 0 });
+  };
+  const switchWorkspace = (id: WorkspaceId) => {
+    setAccountId(null);
+    setSelected(null);
+    setEditor(null);
+    setSearch(false);
+    navigate("Dashboard", id);
+  };
+  const openOnboarding = (a: Account) => {
+    setOnboardingId(a.id);
+    navigate("Brand Onboarding");
+  };
+  const reviewInOperations = (a: Account) => {
+    setOnboardingId(a.id);
+    navigate("Brand Onboarding", "operations");
   };
   const openAccount = (a: Account) => {
     if (a) {
@@ -149,9 +211,19 @@ function Workspace() {
     setSearch(false);
     setNotifications(false);
   };
-  const newWork = () => setEditor({ type: "tasks" });
+  const newWork = () =>
+    setEditor({
+      type: "tasks",
+      accountScope: isSharedPage(page) ? undefined : workspaceInfo.accountType,
+    });
+  const newAccount = () =>
+    setEditor({
+      type: "account",
+      accountType: workspaceInfo.accountType || "Corporate Brand",
+      lockType: !!workspaceInfo.accountType,
+    });
   const group = nav.find((n) => n.items.some((i) => i.name === page))?.section;
-  const pending = data.cases.filter(
+  const pending = scopedItems(data, "cases", workspace).filter(
     (c) => !["Closed", "Resolved"].includes(c.status),
   );
   const matches = data.accounts
@@ -171,7 +243,10 @@ function Workspace() {
     <div
       className={`app-shell ${collapsed ? "sidebar-collapsed" : ""} ${mobileOpen ? "mobile-nav-open" : ""}`}
     >
-      <aside className="sidebar">
+      <aside
+        className="sidebar"
+        aria-label={`${workspaceInfo.name} workspace navigation`}
+      >
         <div className="brand">
           <span className="brand-mark">
             bn
@@ -200,54 +275,70 @@ function Workspace() {
             )}
           </button>
         </div>
-        <div className="workspace-picker-wrap">
+        <div className="workspace-picker-wrap" ref={switcherRef}>
           <button
             className="workspace-picker"
             onClick={() => setSwitcher(!switcher)}
             aria-expanded={switcher}
-            aria-label="Quick navigation"
-            aria-controls={switcher ? "quick-navigation" : undefined}
+            aria-label="Switch workspace"
+            aria-controls={switcher ? "workspace-switcher" : undefined}
           >
-            <span className="workspace-symbol">
-              <span />
-              <span />
-              <span />
-              <span />
+            <span
+              className={`workspace-selected-symbol ${workspaceInfo.color}`}
+            >
+              <WorkspaceIcon size={20} />
             </span>
             {!collapsed && (
               <>
                 <span>
-                  <strong>{data.workspace}</strong>
-                  <small>Quick navigation</small>
+                  <strong>{workspaceInfo.name}</strong>
+                  <small>{data.workspace}</small>
                 </span>
                 <ChevronDown size={14} />
               </>
             )}
           </button>
           {switcher && (
-            <div className="workspace-menu" id="quick-navigation">
-              <small>QUICK NAVIGATION</small>
-              {[
-                { name: "Dashboard", icon: LayoutDashboard },
-                { name: "Work Board", icon: Columns3 },
-                { name: "Affiliate Pipeline", icon: GitBranch },
-              ].map(({ name, icon: Icon }) => (
-                <button
-                  key={name}
-                  onClick={() => navigate(name)}
-                  aria-current={page === name ? "page" : undefined}
-                >
-                  <Icon size={15} />
-                  {name}
-                  <ChevronRight size={13} />
-                </button>
-              ))}
+            <div
+              className="workspace-menu workspace-switcher-menu"
+              id="workspace-switcher"
+            >
+              <small>WORKSPACES</small>
+              {(Object.keys(WORKSPACES) as WorkspaceId[]).map((id) => {
+                const info = WORKSPACES[id];
+                const Icon = workspaceIcons[id];
+                return (
+                  <button
+                    key={id}
+                    onClick={() => switchWorkspace(id)}
+                    aria-label={`${info.name} workspace`}
+                    aria-pressed={workspace === id}
+                  >
+                    <span className={`workspace-option-icon ${info.color}`}>
+                      <Icon size={17} />
+                    </span>
+                    <span className="workspace-option-copy">
+                      <strong>{info.name}</strong>
+                      <small>{info.description}</small>
+                    </span>
+                    {workspace === id ? (
+                      <Check size={15} />
+                    ) : (
+                      <ChevronRight size={13} />
+                    )}
+                  </button>
+                );
+              })}
+              <p>
+                <GitBranch size={12} />
+                Shared records. Connected teams.
+              </p>
             </div>
           )}
         </div>
         <button
           className="sidebar-search"
-          aria-label="Search workspace"
+          aria-label="Search all workspaces"
           onClick={() => setSearch(true)}
         >
           <Search size={15} />
@@ -267,14 +358,15 @@ function Workspace() {
               {g.items.map((n) => (
                 <button
                   key={n.name}
-                  title={collapsed ? n.name : undefined}
+                  title={collapsed ? n.label : undefined}
                   className={`nav-item ${page === n.name ? "active" : ""}`}
+                  aria-current={page === n.name ? "page" : undefined}
                   onClick={() => navigate(n.name)}
                 >
                   <n.icon size={17} strokeWidth={1.75} />
                   {!collapsed && (
                     <>
-                      <span>{n.name}</span>
+                      <span>{n.label}</span>
                       {n.name === "Support Cases" && (
                         <small>{pending.length}</small>
                       )}
@@ -294,8 +386,8 @@ function Workspace() {
               <span className="tip-icon">
                 <Sparkles size={17} />
               </span>
-              <strong>A connected way to work</strong>
-              <p>Your relationships and operations, finally in sync.</p>
+              <strong>Three workspaces. One shared CRM.</strong>
+              <p>Switch focus. Keep every relationship connected.</p>
               <button onClick={() => setHelp(true)}>
                 Explore your workspace
                 <ArrowUpRight size={13} />
@@ -317,7 +409,7 @@ function Workspace() {
               <>
                 <span>
                   <strong>Olivia Parker</strong>
-                  <small>Workspace admin</small>
+                  <small>Organization admin</small>
                 </span>
                 <ChevronsUpDown size={14} />
               </>
@@ -342,11 +434,16 @@ function Workspace() {
             >
               <PanelLeftOpen size={18} />
             </button>
-            <span className="breadcrumb-workspace">Workspace</span>
+            <span className="breadcrumb-workspace">
+              {isSharedPage(page) ? data.workspace : workspaceInfo.name}
+            </span>
             <ChevronRight size={13} />
             <span>{group}</span>
             <ChevronRight size={13} />
-            <strong>{page}</strong>
+            <strong>
+              {nav.flatMap((g) => g.items).find((i) => i.name === page)
+                ?.label || page}
+            </strong>
           </div>
           <div className="topbar-actions">
             <span className="demo-indicator">
@@ -380,10 +477,31 @@ function Workspace() {
             </button>
           </div>
         </header>
-        <main key={page} className="main-content">
+        <main key={`${workspace}:${page}`} className="main-content">
           {page === "Dashboard" && (
-            <Dashboard
+            <WorkspaceDashboard
+              workspace={workspace}
               navigate={navigate}
+              openAccount={openAccount}
+              openItem={openItem}
+              openOnboarding={openOnboarding}
+              createAccount={newAccount}
+              createWork={newWork}
+            />
+          )}
+
+          {page === "Company Overview" && (
+            <Dashboard
+              navigate={(s) =>
+                navigate(
+                  s,
+                  s === "Accounts" || s === "Brand Onboarding"
+                    ? "brands"
+                    : s === "Affiliate Pipeline"
+                      ? "affiliates"
+                      : "operations",
+                )
+              }
               openAccount={openAccount}
               openItem={openItem}
               newWork={newWork}
@@ -392,15 +510,22 @@ function Workspace() {
           {page === "Accounts" && (
             <Accounts
               openAccount={openAccount}
-              create={() => setEditor({ type: "account" })}
+              create={newAccount}
+              accountType={workspaceInfo.accountType}
             />
           )}
-          {page === "Contacts" && <Contacts openAccount={openAccount} />}
+          {page === "Contacts" && (
+            <Contacts openAccount={openAccount} workspace={workspace} />
+          )}
           {page === "Affiliate Pipeline" && (
             <Pipeline
               openAccount={openAccount}
               create={() =>
-                setEditor({ type: "account", accountType: "Affiliate" })
+                setEditor({
+                  type: "account",
+                  accountType: "Affiliate",
+                  lockType: true,
+                })
               }
             />
           )}
@@ -409,23 +534,48 @@ function Workspace() {
               supplier
               openAccount={openAccount}
               create={() =>
-                setEditor({ type: "account", accountType: "Supplier" })
+                setEditor({
+                  type: "account",
+                  accountType: "Supplier",
+                  lockType: true,
+                })
               }
             />
           )}
-          {page === "Brand Onboarding" && <Onboarding />}
+          {page === "Brand Onboarding" && (
+            <Onboarding
+              initialId={onboardingId}
+              approvalsOnly={workspace === "operations"}
+              onReview={reviewInOperations}
+            />
+          )}
           {page === "Work Board" && (
-            <WorkBoard openItem={openItem} create={newWork} />
+            <WorkBoard
+              workspace={workspace}
+              openItem={openItem}
+              create={newWork}
+            />
           )}
           {page === "Support Cases" && (
             <WorkBoard
+              workspace={workspace}
               kind="cases"
               openItem={openItem}
-              create={() => setEditor({ type: "cases" })}
+              create={() =>
+                setEditor({
+                  type: "cases",
+                  accountScope: workspaceInfo.accountType,
+                })
+              }
             />
           )}
           {page === "Tasks" && (
-            <WorkBoard taskView openItem={openItem} create={newWork} />
+            <WorkBoard
+              workspace={workspace}
+              taskView
+              openItem={openItem}
+              create={newWork}
+            />
           )}
           {page === "Barrel Management" && (
             <Barrels openAccount={openAccount} />
@@ -440,7 +590,12 @@ function Workspace() {
         onClose={() => setAccountId(null)}
         edit={(a) => setEditor({ type: "account", record: a })}
         openItem={openItem}
-        navigate={navigate}
+        navigate={(page) => {
+          if (page === "Brand Onboarding") {
+            if (accountId) setOnboardingId(accountId);
+            navigate(page, "brands");
+          } else navigate(page);
+        }}
       />
       <WorkDetail
         key={selected?.id}
@@ -457,7 +612,7 @@ function Workspace() {
       />
       <Dialog open={search} onOpenChange={setSearch}>
         <DialogContent className="search-dialog">
-          <DialogTitle className="sr-only">Search workspace</DialogTitle>
+          <DialogTitle className="sr-only">Search all workspaces</DialogTitle>
           <DialogDescription className="sr-only">
             Find accounts, tasks, and support cases.
           </DialogDescription>
@@ -507,7 +662,8 @@ function Workspace() {
             )}
           </div>
           <div className="command-footer">
-            Search across your connected workspace <kbd>esc</kbd> to close
+            Search across Brands, Affiliates, and Operations <kbd>esc</kbd> to
+            close
           </div>
         </DialogContent>
       </Dialog>
@@ -550,7 +706,7 @@ function Workspace() {
               </button>
             ))}
           {data.settings.reminders &&
-            data.tasks
+            scopedItems(data, "tasks", workspace)
               .filter(
                 (t) =>
                   t.assignee === "Olivia Parker" &&
@@ -582,7 +738,8 @@ function Workspace() {
           </span>
           <DialogTitle>A connected way to work</DialogTitle>
           <DialogDescription>
-            Explore BN CRM with realistic, fictional records.
+            Switch between Brands, Affiliates, and Operations. Search and
+            account profiles connect the same records across every workspace.
           </DialogDescription>
           <div className="help-steps">
             {[

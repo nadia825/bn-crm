@@ -14,6 +14,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { toast } from "sonner";
+import { scopedItems, WORKSPACES, type WorkspaceId } from "@/lib/workspaces";
 import { useStore } from "@/lib/store";
 import {
   affiliateStages,
@@ -193,7 +194,11 @@ export function Pipeline({
           Active partnerships
         </span>
         <span>
-          <strong>{supplier ? data.barrels.length : all.filter((a) => a.shopify === "Connected").length}</strong>
+          <strong>
+            {supplier
+              ? data.barrels.length
+              : all.filter((a) => a.shopify === "Connected").length}
+          </strong>
           {supplier ? "Connected barrels" : "Shopify connected"}
         </span>
         <span className="subtle">
@@ -318,11 +323,13 @@ export function Pipeline({
   );
 }
 export function WorkBoard({
+  workspace = "operations",
   kind = "tasks",
   taskView = false,
   openItem,
   create,
 }: {
+  workspace?: WorkspaceId;
   kind?: "tasks" | "cases";
   taskView?: boolean;
   openItem: (i: WorkItem, k: "tasks" | "cases") => void;
@@ -339,7 +346,8 @@ export function WorkBoard({
   const [sort, setSort] = useState("due");
   const [asc, setAsc] = useState(true);
   const stages = kind === "cases" ? caseStages : workStages;
-  const rows = data[kind]
+  const records = scopedItems(data, kind, workspace);
+  const rows = records
     .filter(
       (r) =>
         (filter === "All statuses" || r.status === filter) &&
@@ -388,7 +396,10 @@ export function WorkBoard({
       : ["Work board", "Keep your business operations moving, together."];
   return (
     <>
-      <SectionTitle title={headings[0]} subtitle={headings[1]}>
+      <SectionTitle
+        title={headings[0]}
+        subtitle={`${WORKSPACES[workspace].name} workspace · ${headings[1]}`}
+      >
         <Button onClick={create}>
           <Plus size={16} />
           {isCase ? "New case" : "New work request"}
@@ -400,7 +411,10 @@ export function WorkBoard({
             className={!mine ? "active" : ""}
             onClick={() => setMine(false)}
           >
-            All team tasks <span>{data.tasks.length}</span>
+            {workspace === "operations"
+              ? "All team tasks"
+              : `All ${WORKSPACES[workspace].name.toLowerCase()} tasks`}{" "}
+            <span>{records.length}</span>
           </button>
           <button
             className={mine ? "active" : ""}
@@ -408,21 +422,21 @@ export function WorkBoard({
           >
             My tasks{" "}
             <span>
-              {data.tasks.filter((t) => t.assignee === "Olivia Parker").length}
+              {records.filter((t) => t.assignee === "Olivia Parker").length}
             </span>
           </button>
         </div>
       ) : (
         <div className="pipeline-kpis">
           <span>
-            <strong>{data[kind].length}</strong>Total{" "}
+            <strong>{records.length}</strong>Total{" "}
             {isCase ? "cases" : "work items"}
           </span>
           <span>
             <i className="dot purple-dot" />
             <strong>
               {
-                data[kind].filter(
+                records.filter(
                   (t) =>
                     !["Done", "Aborted", "Resolved", "Closed"].includes(
                       t.status,
@@ -435,14 +449,14 @@ export function WorkBoard({
           <span>
             <i className="dot amber-dot" />
             <strong>
-              {data[kind].filter((t) => t.priority === "Urgent").length}
+              {records.filter((t) => t.priority === "Urgent").length}
             </strong>
             Urgent priority
           </span>
           <span className="subtle">
             {isCase
               ? "Connected to account profiles"
-              : "Business operations · Bottle Nexus Team"}
+              : `${WORKSPACES[workspace].name} workspace · Connected business records`}
           </span>
         </div>
       )}

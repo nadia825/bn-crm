@@ -33,16 +33,19 @@ import {
 } from "./shared";
 import { Kanban } from "./boards";
 import { GrowthChart } from "./dashboard";
+import { scopedAccounts, type WorkspaceId, WORKSPACES } from "@/lib/workspaces";
 import { toast } from "sonner";
 export function Contacts({
   openAccount,
+  workspace = "operations",
 }: {
   openAccount: (a: Account) => void;
+  workspace?: WorkspaceId;
 }) {
   const { data } = useStore();
   const [query, setQuery] = useState("");
   const [manager, setManager] = useState("All managers");
-  const rows = data.accounts
+  const rows = scopedAccounts(data, workspace)
     .flatMap((a) =>
       a.contacts.map((c, i) => ({ ...c, account: a, id: a.id + i })),
     )
@@ -57,7 +60,7 @@ export function Contacts({
     <>
       <SectionTitle
         title="Contacts"
-        subtitle="The people behind your partnerships."
+        subtitle={`The people behind your ${WORKSPACES[workspace].name.toLowerCase()} relationships.`}
       />
       <Card>
         <Toolbar
@@ -506,7 +509,15 @@ export function Reports() {
               title="Network growth"
               subtitle={`Illustrative historical trend · ${period}`}
             />
-            <GrowthChart through={period.startsWith("September") ? "Sep" : period.startsWith("August") ? "Aug" : "Oct"} />
+            <GrowthChart
+              through={
+                period.startsWith("September")
+                  ? "Sep"
+                  : period.startsWith("August")
+                    ? "Aug"
+                    : "Oct"
+              }
+            />
             <div className="chart-foot">
               <span>
                 <i className="dot purple-dot" />
@@ -527,7 +538,7 @@ export function Reports() {
                 data.accounts.filter(
                   (a) => a.type === "Affiliate" && a.status === "Active",
                 ).length,
-                data.accounts.filter(a => a.type === "Affiliate").length,
+                data.accounts.filter((a) => a.type === "Affiliate").length,
               ],
               ["Completed operations", done, data.tasks.length],
               ["Resolved support cases", resolved, data.cases.length],
@@ -536,7 +547,8 @@ export function Reports() {
                 data.accounts.filter(
                   (a) => a.type === "Corporate Brand" && a.status === "Active",
                 ).length,
-                data.accounts.filter(a => a.type === "Corporate Brand").length,
+                data.accounts.filter((a) => a.type === "Corporate Brand")
+                  .length,
               ],
             ].map(([label, n, total]) => (
               <div className="report-progress-row" key={label}>
@@ -614,13 +626,13 @@ export function Settings() {
   return (
     <>
       <SectionTitle
-        title="Workspace settings"
-        subtitle="Make this connected workspace work for your team."
+        title="Organization settings"
+        subtitle="Shared settings for Brands, Affiliates, and Operations."
       />
       <div className="settings-layout">
         <Card className="settings-card">
           <PanelHeading
-            title="Workspace details"
+            title="Organization details"
             subtitle="Your shared home for relationships and operations"
           />
           <form
@@ -630,12 +642,12 @@ export function Settings() {
               const workspace = String(f.get("workspace")).trim();
               if (workspace) {
                 setData((d) => ({ ...d, workspace }));
-                toast.success("Workspace settings saved");
+                toast.success("Organization settings saved");
               }
             }}
           >
             <label className="field-label">
-              Workspace name
+              Organization name
               <Input name="workspace" required defaultValue={data.workspace} />
             </label>
             <label className="field-label spaced">
@@ -687,7 +699,7 @@ export function Settings() {
         <Card className="settings-card">
           <PanelHeading
             title="Your team"
-            subtitle="Demo workspace · Four mock team members"
+            subtitle="Demo organization · Four mock team members"
           />
           {["Olivia Parker", "James Wilson", "Sofia Chen", "Marcus Reed"].map(
             (m, i) => (
@@ -728,10 +740,11 @@ export function Settings() {
       </div>
       <Dialog open={reset} onOpenChange={setReset}>
         <DialogContent>
-          <DialogTitle>Reset the demo workspace?</DialogTitle>
+          <DialogTitle>Reset all three workspaces?</DialogTitle>
           <DialogDescription>
-            This removes local edits and restores all fictional sample records.
-            This action cannot be undone.
+            This removes local edits across Brands, Affiliates, and Operations
+            and restores all fictional sample records. This action cannot be
+            undone.
           </DialogDescription>
           <div className="dialog-footer">
             <Button variant="outline" onClick={() => setReset(false)}>

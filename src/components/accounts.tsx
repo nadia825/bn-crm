@@ -44,24 +44,33 @@ import { toast } from "sonner";
 export function Accounts({
   openAccount,
   create,
+  accountType,
 }: {
   openAccount: (a: Account) => void;
   create: () => void;
+  accountType?: Account["type"];
 }) {
   const { data } = useStore();
+  const allAccounts = data.accounts.filter((a) =>
+    accountType ? a.type === accountType : a.type !== "Supplier",
+  );
+  const allLabel =
+    accountType === "Corporate Brand"
+      ? "All brands"
+      : accountType === "Affiliate"
+        ? "All affiliates"
+        : "All accounts";
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState("All accounts");
+  const [filter, setFilter] = useState(allLabel);
   const [manager, setManager] = useState("All managers");
   const [sort, setSort] = useState("name");
   const [asc, setAsc] = useState(true);
   const [page, setPage] = useState(0);
-  const rows = data.accounts
+  const rows = allAccounts
     .filter(
       (a) =>
         a.type !== "Supplier" &&
-        (filter === "All accounts" ||
-          a.type === filter ||
-          a.status === filter) &&
+        (filter === allLabel || a.type === filter || a.status === filter) &&
         (manager === "All managers" || a.manager === manager) &&
         `${a.name} ${a.email} ${a.retailers.join(" ")}`
           .toLowerCase()
@@ -82,8 +91,14 @@ export function Accounts({
   return (
     <>
       <SectionTitle
-        title="Accounts"
-        subtitle="Every relationship. One connected directory."
+        title={
+          accountType === "Corporate Brand"
+            ? "Brand accounts"
+            : accountType === "Affiliate"
+              ? "Affiliate accounts"
+              : "Accounts"
+        }
+        subtitle={`${allAccounts.length} ${accountType === "Corporate Brand" ? "corporate brands" : accountType === "Affiliate" ? "affiliates" : "accounts"} · Connected to shared tasks, cases, and contacts.`}
       >
         <Button variant="outline" onClick={() => exportCSV(rows)}>
           {" "}
@@ -92,49 +107,55 @@ export function Accounts({
         </Button>
         <Button onClick={create}>
           <Plus size={16} />
-          New account
+          {accountType === "Corporate Brand"
+            ? "New brand"
+            : accountType === "Affiliate"
+              ? "New affiliate"
+              : "New account"}
         </Button>
       </SectionTitle>
-      <div className="account-summary">
-        <button
-          className={filter === "All accounts" ? "active" : ""}
-          onClick={() => {
-            setFilter("All accounts");
-            setPage(0);
-          }}
-        >
-          All accounts{" "}
-          <span>
-            {data.accounts.filter((a) => a.type !== "Supplier").length}
-          </span>
-        </button>
-        <button
-          className={filter === "Corporate Brand" ? "active" : ""}
-          onClick={() => {
-            setFilter("Corporate Brand");
-            setPage(0);
-          }}
-        >
-          <Building2 size={15} />
-          Corporate brands{" "}
-          <span>
-            {data.accounts.filter((a) => a.type === "Corporate Brand").length}
-          </span>
-        </button>
-        <button
-          className={filter === "Affiliate" ? "active" : ""}
-          onClick={() => {
-            setFilter("Affiliate");
-            setPage(0);
-          }}
-        >
-          <Users size={15} />
-          Affiliates{" "}
-          <span>
-            {data.accounts.filter((a) => a.type === "Affiliate").length}
-          </span>
-        </button>
-      </div>
+      {!accountType && (
+        <div className="account-summary">
+          <button
+            className={filter === "All accounts" ? "active" : ""}
+            onClick={() => {
+              setFilter("All accounts");
+              setPage(0);
+            }}
+          >
+            All accounts{" "}
+            <span>
+              {allAccounts.filter((a) => a.type !== "Supplier").length}
+            </span>
+          </button>
+          <button
+            className={filter === "Corporate Brand" ? "active" : ""}
+            onClick={() => {
+              setFilter("Corporate Brand");
+              setPage(0);
+            }}
+          >
+            <Building2 size={15} />
+            Corporate brands{" "}
+            <span>
+              {allAccounts.filter((a) => a.type === "Corporate Brand").length}
+            </span>
+          </button>
+          <button
+            className={filter === "Affiliate" ? "active" : ""}
+            onClick={() => {
+              setFilter("Affiliate");
+              setPage(0);
+            }}
+          >
+            <Users size={15} />
+            Affiliates{" "}
+            <span>
+              {allAccounts.filter((a) => a.type === "Affiliate").length}
+            </span>
+          </button>
+        </div>
+      )}
       <Card>
         <Toolbar
           query={query}
@@ -153,12 +174,14 @@ export function Accounts({
             setPage(0);
           }}
           filterOptions={[
-            "All accounts",
-            "Corporate Brand",
-            "Affiliate",
+            allLabel,
+            ...(!accountType ? ["Corporate Brand", "Affiliate"] : []),
             "Active",
-            "Onboarding",
-            "Prospect",
+            ...(accountType === "Corporate Brand"
+              ? ["Onboarding"]
+              : accountType === "Affiliate"
+                ? ["Prospect", "On Hold", "Rejected"]
+                : ["Onboarding", "Prospect", "On Hold", "Rejected"]),
           ]}
         />
         <div className="table-scroll">

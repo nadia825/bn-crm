@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Check,
   CheckCheck,
@@ -13,21 +13,65 @@ import {
   Building2,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
-import { requirements, managers, event } from "@/lib/data";
+import { requirements, managers, event, type Account } from "@/lib/data";
 import { Card, Badge, Textarea } from "./ui/primitives";
 import { Button } from "./ui/button";
 import { AccountLogo, Avatar, SectionTitle } from "./shared";
 import { toast } from "sonner";
-export function Onboarding() {
+export function Onboarding({
+  initialId,
+  approvalsOnly = false,
+  onReview,
+}: {
+  initialId?: string;
+  approvalsOnly?: boolean;
+  onReview?: (a: Account) => void;
+}) {
   const { data, setData } = useStore();
-  const brands = data.accounts.filter((a) => a.type === "Corporate Brand");
+  const allBrands = data.accounts.filter((a) => a.type === "Corporate Brand");
+  const brands = approvalsOnly
+    ? allBrands.filter((a) => a.approval === "Pending approval")
+    : allBrands;
   const [selected, setSelected] = useState(
-    brands.find((a) => a.status === "Onboarding")?.id || brands[0]?.id,
+    initialId ||
+      brands.find((a) => a.status === "Onboarding")?.id ||
+      brands[0]?.id,
   );
   const [verifying, setVerifying] = useState(false);
   const [reason, setReason] = useState("");
+  useEffect(() => {
+    if (initialId) {
+      setSelected(initialId);
+      setReason("");
+    }
+  }, [initialId]);
   const a = brands.find((b) => b.id === selected) || brands[0];
-  if (!a) return null;
+  if (!a)
+    return (
+      <>
+        <SectionTitle
+          title={approvalsOnly ? "Brand approvals" : "Brand onboarding"}
+          subtitle={
+            approvalsOnly
+              ? "Operations review queue · Connected to the Brands workspace"
+              : "A thoughtful launch starts with a complete setup."
+          }
+        />
+        <Card className="workspace-empty-queue">
+          <CircleCheck size={32} />
+          <h3>
+            {approvalsOnly
+              ? "No brands awaiting approval"
+              : "No brands to onboard yet"}
+          </h3>
+          <p>
+            {approvalsOnly
+              ? "Once a brand completes setup, passes verification, and is submitted from Brands, it appears here automatically."
+              : "Create a brand account to begin its six-step setup."}
+          </p>
+        </Card>
+      </>
+    );
   const count = a.checks.filter(Boolean).length,
     all = count === 6;
   const update = (patch: Partial<typeof a>, text: string) =>
@@ -61,8 +105,12 @@ export function Onboarding() {
   return (
     <>
       <SectionTitle
-        title="Brand onboarding"
-        subtitle="A thoughtful launch starts with a complete setup."
+        title={approvalsOnly ? "Brand approvals" : "Brand onboarding"}
+        subtitle={
+          approvalsOnly
+            ? "Review verified setup and approve or return brands for revision."
+            : "A thoughtful launch starts with a complete setup."
+        }
       >
         <span className="demo-chip">
           <ShieldCheck size={14} />
@@ -76,7 +124,7 @@ export function Onboarding() {
           </span>
           <div>
             <strong>
-              {brands.filter((a) => a.status === "Onboarding").length}
+              {allBrands.filter((a) => a.status === "Onboarding").length}
             </strong>
             <span>Brands in onboarding</span>
           </div>
@@ -87,7 +135,10 @@ export function Onboarding() {
           </span>
           <div>
             <strong>
-              {brands.filter((a) => a.approval === "Pending approval").length}
+              {
+                allBrands.filter((a) => a.approval === "Pending approval")
+                  .length
+              }
             </strong>
             <span>Awaiting approval</span>
           </div>
@@ -98,7 +149,7 @@ export function Onboarding() {
           </span>
           <div>
             <strong>
-              {brands.filter((a) => a.status === "Active").length}
+              {allBrands.filter((a) => a.status === "Active").length}
             </strong>
             <span>Active brands</span>
           </div>
@@ -106,7 +157,11 @@ export function Onboarding() {
       </div>
       <div className="onboarding-layout">
         <Card className="brand-list">
-          <h3>Brand launch queue</h3>
+          <h3>
+            {approvalsOnly
+              ? "Awaiting Operations review"
+              : "Brand launch queue"}
+          </h3>
           {[
             ...brands.filter((a) => a.status !== "Active"),
             ...brands.filter((a) => a.status === "Active"),
@@ -283,56 +338,73 @@ export function Onboarding() {
                 </div>
               </div>
             ) : a.approval === "Pending approval" ? (
-              <>
-                <div className="info-callout">
-                  Submitted for simulated Operations review. You can act as the
-                  reviewer in this prototype.
-                </div>
-                <Textarea
-                  aria-label="Approval review notes"
-                  placeholder="Add a review note (required to reject)…"
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                />
-                <div className="approval-actions">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      if (!reason.trim()) {
-                        toast.error("Add a reason before rejecting.");
-                        return;
-                      }
-                      update(
-                        { approval: "Rejected", verification: "Pending" },
-                        `Operations rejected activation: ${reason.trim()}`,
-                      );
-                      setReason("");
-                      toast.info(
-                        "Activation rejected. Revise setup and verify again.",
-                      );
-                    }}
-                  >
-                    Reject & return
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      if (!all || a.verification !== "Verified") return;
-                      update(
-                        {
-                          approval: "Approved",
-                          status: "Active",
-                          stage: "Active",
-                        },
-                        `Operations approved activation.${reason.trim() ? " " + reason.trim() : ""}`,
-                      );
-                      toast.success(`${a.name} is now active`);
-                    }}
-                  >
-                    <CheckCheck size={16} />
-                    Approve & activate
+              !approvalsOnly ? (
+                <div className="awaiting-operations-panel">
+                  <ShieldCheck size={24} />
+                  <div>
+                    <h3>Awaiting Operations approval</h3>
+                    <p>
+                      This brand is in the Operations review queue. Any decision
+                      there updates this record automatically.
+                    </p>
+                  </div>
+                  <Button variant="outline" onClick={() => onReview?.(a)}>
+                    Review in Operations
+                    <ArrowRight size={15} />
                   </Button>
                 </div>
-              </>
+              ) : (
+                <>
+                  <div className="info-callout">
+                    Review the simulated configuration, then approve activation
+                    or return the brand with a reason.
+                  </div>
+                  <Textarea
+                    aria-label="Approval review notes"
+                    placeholder="Add a review note (required to reject)…"
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                  />
+                  <div className="approval-actions">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        if (!reason.trim()) {
+                          toast.error("Add a reason before rejecting.");
+                          return;
+                        }
+                        update(
+                          { approval: "Rejected", verification: "Pending" },
+                          `Operations rejected activation: ${reason.trim()}`,
+                        );
+                        setReason("");
+                        toast.info(
+                          "Activation rejected. Revise setup and verify again.",
+                        );
+                      }}
+                    >
+                      Reject & return
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        if (!all || a.verification !== "Verified") return;
+                        update(
+                          {
+                            approval: "Approved",
+                            status: "Active",
+                            stage: "Active",
+                          },
+                          `Operations approved activation.${reason.trim() ? " " + reason.trim() : ""}`,
+                        );
+                        toast.success(`${a.name} is now active`);
+                      }}
+                    >
+                      <CheckCheck size={16} />
+                      Approve & activate
+                    </Button>
+                  </div>
+                </>
+              )
             ) : (
               <>
                 <p className="approval-copy">

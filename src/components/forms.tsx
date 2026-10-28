@@ -22,8 +22,17 @@ import {
 import { Input, Textarea, Select } from "./ui/primitives";
 import { toast } from "sonner";
 export type Editor =
-  | { type: "account"; record?: Account; accountType?: Account["type"] }
-  | { type: "tasks" | "cases"; record?: WorkItem };
+  | {
+      type: "account";
+      record?: Account;
+      accountType?: Account["type"];
+      lockType?: boolean;
+    }
+  | {
+      type: "tasks" | "cases";
+      record?: WorkItem;
+      accountScope?: Account["type"];
+    };
 export function EditorDialog({
   editor,
   onClose,
@@ -128,7 +137,17 @@ function AccountForm({
   };
   return (
     <form onSubmit={save}>
-      <DialogTitle>{a ? "Edit account" : "Create a new account"}</DialogTitle>
+      <DialogTitle>
+        {a
+          ? "Edit account"
+          : editor.lockType && type === "Corporate Brand"
+            ? "Create a brand"
+            : editor.lockType && type === "Affiliate"
+              ? "Create an affiliate"
+              : editor.lockType && type === "Supplier"
+                ? "Create a supplier"
+                : "Create a new account"}
+      </DialogTitle>
       <DialogDescription>
         Build a lasting relationship, starting with the essentials.
       </DialogDescription>
@@ -148,7 +167,7 @@ function AccountForm({
           <Select
             name="type"
             value={type}
-            disabled={!!a}
+            disabled={!!a || editor.lockType}
             options={["Corporate Brand", "Affiliate", "Supplier"]}
             onChange={(e) => {
               const t = e.target.value as Account["type"];
@@ -260,7 +279,15 @@ function AccountForm({
         </Button>
         <Button type="submit">
           <Save size={15} />
-          {a ? "Save changes" : "Create account"}
+          {a
+            ? "Save changes"
+            : editor.lockType && type === "Corporate Brand"
+              ? "Create brand"
+              : editor.lockType && type === "Affiliate"
+                ? "Create affiliate"
+                : editor.lockType && type === "Supplier"
+                  ? "Create supplier"
+                  : "Create account"}
         </Button>
       </div>
     </form>
@@ -401,11 +428,15 @@ function WorkForm({
             <option value="" disabled>
               Select an account
             </option>
-            {data.accounts.map((a) => (
-              <option value={a.id} key={a.id}>
-                {a.name} · {a.type}
-              </option>
-            ))}
+            {data.accounts
+              .filter(
+                (a) => !editor.accountScope || a.type === editor.accountScope,
+              )
+              .map((a) => (
+                <option value={a.id} key={a.id}>
+                  {a.name} · {a.type}
+                </option>
+              ))}
           </select>
         </label>
         {!isCase && (

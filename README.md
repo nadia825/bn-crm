@@ -55,7 +55,7 @@ Then open `http://localhost:3001`. Use the same `BN_CRM_PORT` value for subseque
 - Affiliate and supplier pipelines with separate stage definitions, manager filters, native drag-and-drop boards, and editable list stages. Account editing provides a keyboard-accessible alternative to dragging.
 - Operational work, My Tasks, team tasks, support cases, create/edit forms, assignments, status changes, comments, history, and optional linked support cases. Resolving a case requires a resolution.
 - Corporate brand setup with six mandatory requirements, a simulated verification delay, submission for Operations review, rejection with a reason, and approval/activation. Editing setup invalidates previous verification. Active brands are locked against checklist changes.
-- Barrel tables/boards and editable records, contacts, reports and CSV export, workspace settings, notification preferences, reset confirmation, quick navigation shortcuts to Dashboard, Work Board, and Affiliate Pipeline, global search (Cmd/Ctrl+K), and responsive navigation.
+- Barrel tables/boards and editable records, contacts, reports and CSV export, workspace settings, notification preferences, reset confirmation, Brands, Affiliates, and Operations workspaces with distinct dashboards and navigation, global search (Cmd/Ctrl+K), and responsive navigation.
 
 ## Data and persistence
 
@@ -72,3 +72,11 @@ No real authentication, database, external APIs, Shopify, Stripe, email delivery
 ## Validation
 
 Data integrity tests cover exact counts, unique IDs, all cross-module references, activation invariants, case resolutions, fictional contact domains, and independent supplier/affiliate workflows. Browser QA covers account creation and reload persistence, account notes, onboarding verification/rejection/activation, work editing, comments, case resolution, pipeline moves, and responsive navigation.
+
+## Connected workspaces
+
+The workspace switcher selects Brands, Affiliates, or Operations. Each has its own home dashboard, navigation, default account type, and scoped task/case lists. Brands owns corporate relationships and six-step onboarding. Affiliates owns acquisition, partner follow-ups, connected retailer relationships, and barrel activities. Operations owns team-wide business work, support, suppliers, barrels, and the brand approval queue. Company overview, Reports, Settings, and global search remain available across workspaces.
+
+All workspaces use the same store and record IDs. Brand and affiliate directories filter the existing account type; tasks and cases are scoped through their linked account. Operations sees the complete set. Changing a case, completing a task, or approving a brand updates the same record in every applicable view. Submitting a verified brand queues it for Operations; approval or rejection happens in the Operations workspace. These are contextual workspaces, not separate databases or a production authorization boundary.
+
+Workspace URLs use hashes such as `#brands/dashboard`, `#affiliates/accounts`, and `#operations/work-board`. Global URLs use `#company/overview`, `#company/reports`, and `#company/settings`. Older single-workspace links still resolve to their appropriate context. The selected workspace is remembered separately under `bn-crm-navigation`; the existing `bn-crm-v0` records are preserved with no reset or duplication.

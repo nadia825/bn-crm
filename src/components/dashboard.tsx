@@ -147,8 +147,8 @@ export function Dashboard({ navigate, openAccount, openItem, newWork }: Props) {
   return (
     <>
       <SectionTitle
-        title="Your business, at a glance"
-        subtitle="Welcome back, Olivia. Here’s what’s happening at Bottle Nexus."
+        title="Company overview"
+        subtitle="A connected view of Brands, Affiliates, and Operations at Bottle Nexus."
       >
         <div className="date-filter snapshot-date">
           <CalendarDays size={15} />
@@ -563,7 +563,10 @@ export function GrowthChart({ through = "Oct" }: { through?: string }) {
           { month: "Aug", brands: 15, affiliates: 25 },
           { month: "Sep", brands: 17, affiliates: 28 },
           { month: "Oct", brands: 20, affiliates: 35 },
-        ].slice(0, ["May", "Jun", "Jul", "Aug", "Sep", "Oct"].indexOf(through) + 1)}
+        ].slice(
+          0,
+          ["May", "Jun", "Jul", "Aug", "Sep", "Oct"].indexOf(through) + 1,
+        )}
       >
         <defs>
           <linearGradient id="growth" x1="0" y1="0" x2="0" y2="1">
