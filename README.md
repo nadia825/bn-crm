@@ -21,6 +21,33 @@ npm run build
 
 The production static export is generated in `out/`.
 
+## Run with Docker
+
+Requires Docker Engine with Compose (Docker Desktop or OrbStack on macOS). From this project directory:
+
+```sh
+docker compose up -d --build --wait
+```
+
+Open [BN CRM locally](http://localhost:3000). The container is named `bn-crm` and the image is `bn-crm:local`. The build installs the locked dependencies, runs the data-integrity tests, builds Next.js, and copies the static export into a small, non-root NGINX runtime. Node.js is only needed inside the build image.
+
+```sh
+docker compose ps                 # Container health and port
+docker compose logs -f            # Server logs
+docker compose stop               # Stop, keeping the container
+docker compose start --wait       # Start it again
+docker compose down              # Remove the container and Compose network
+docker compose up -d --build --wait # Rebuild after source changes
+```
+
+Port 3000 is bound to this machine's loopback interface. If it is already occupied:
+
+```sh
+BN_CRM_PORT=3001 docker compose up -d --build --wait
+```
+
+Then open `http://localhost:3001`. Use the same `BN_CRM_PORT` value for subsequent Compose commands. The local Docker URL does not require ChatGPT sign-in. No database or volume is required: mock records persist in the browser's localStorage, even when the container is recreated. Different browsers, ports, and hostnames (`localhost` versus `127.0.0.1`) have separate records. Use the same local URL consistently.
+
 ## Included workflows
 
 - Dashboard with live mock totals, affiliate stages, operational distribution, activity, tasks, accounts, and urgent cases.
@@ -28,7 +55,7 @@ The production static export is generated in `out/`.
 - Affiliate and supplier pipelines with separate stage definitions, manager filters, native drag-and-drop boards, and editable list stages. Account editing provides a keyboard-accessible alternative to dragging.
 - Operational work, My Tasks, team tasks, support cases, create/edit forms, assignments, status changes, comments, history, and optional linked support cases. Resolving a case requires a resolution.
 - Corporate brand setup with six mandatory requirements, a simulated verification delay, submission for Operations review, rejection with a reason, and approval/activation. Editing setup invalidates previous verification. Active brands are locked against checklist changes.
-- Barrel tables/boards and editable records, contacts, reports and CSV export, workspace settings, notification preferences, reset confirmation, workspace views, global search (Cmd/Ctrl+K), and responsive navigation.
+- Barrel tables/boards and editable records, contacts, reports and CSV export, workspace settings, notification preferences, reset confirmation, quick navigation shortcuts to Dashboard, Work Board, and Affiliate Pipeline, global search (Cmd/Ctrl+K), and responsive navigation.
 
 ## Data and persistence
 

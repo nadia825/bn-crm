@@ -19,6 +19,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   ChevronRight,
+  ChevronDown,
   Plus,
   HelpCircle,
   ArrowUpRight,
@@ -204,7 +205,8 @@ function Workspace() {
             className="workspace-picker"
             onClick={() => setSwitcher(!switcher)}
             aria-expanded={switcher}
-            aria-label="Switch workspace"
+            aria-label="Quick navigation"
+            aria-controls={switcher ? "quick-navigation" : undefined}
           >
             <span className="workspace-symbol">
               <span />
@@ -216,23 +218,27 @@ function Workspace() {
               <>
                 <span>
                   <strong>{data.workspace}</strong>
-                  <small>Team workspace</small>
+                  <small>Quick navigation</small>
                 </span>
-                <ChevronsUpDown size={14} />
+                <ChevronDown size={14} />
               </>
             )}
           </button>
           {switcher && (
-            <div className="workspace-menu">
-              <small>WORKSPACE VIEWS</small>
+            <div className="workspace-menu" id="quick-navigation">
+              <small>QUICK NAVIGATION</small>
               {[
-                [data.workspace, "Dashboard"],
-                ["Business operations", "Work Board"],
-                ["Affiliate partnerships", "Affiliate Pipeline"],
-              ].map(([s, p]) => (
-                <button key={p} onClick={() => navigate(p)}>
-                  <Building2 size={15} />
-                  {s}
+                { name: "Dashboard", icon: LayoutDashboard },
+                { name: "Work Board", icon: Columns3 },
+                { name: "Affiliate Pipeline", icon: GitBranch },
+              ].map(({ name, icon: Icon }) => (
+                <button
+                  key={name}
+                  onClick={() => navigate(name)}
+                  aria-current={page === name ? "page" : undefined}
+                >
+                  <Icon size={15} />
+                  {name}
                   <ChevronRight size={13} />
                 </button>
               ))}

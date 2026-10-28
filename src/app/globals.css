@@ -281,8 +281,10 @@ small {
   padding: 10px 7px;
   border-radius: 5px;
 }
-.workspace-menu button:hover {
+.workspace-menu button:hover,
+.workspace-menu button[aria-current="page"] {
   background: #f4effc;
+  color: var(--purple-dark);
 }
 .workspace-menu button > svg:last-child {
   margin-left: auto;

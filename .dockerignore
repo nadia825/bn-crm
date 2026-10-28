@@ -1,0 +1,14 @@
+node_modules
+.next
+out
+.git
+.openai
+.sites-runtime
+.codex
+.agents
+.env*
+*.tsbuildinfo
+*.log
+coverage
+.DS_Store
+documents
