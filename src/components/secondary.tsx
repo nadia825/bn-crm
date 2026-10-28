@@ -129,7 +129,7 @@ export function Barrels({
 }: {
   openAccount: (a: Account) => void;
 }) {
-  const { data, setData } = useStore();
+  const { data, setData, can, resetDemo } = useStore();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("All statuses");
   const [view, setView] = useState("list");
@@ -142,10 +142,11 @@ export function Barrels({
         .includes(query.toLowerCase()),
   );
   const move = (id: string, status: string) => {
-    setData((d) => ({
+    const saved = setData((d) => ({
       ...d,
       barrels: d.barrels.map((b) => (b.id === id ? { ...b, status } : b)),
     }));
+    if (!saved) return;
     toast.success(`Barrel moved to ${status}`);
   };
   return (
@@ -155,7 +156,7 @@ export function Barrels({
         subtitle="Every barrel, from sourcing to the final pour."
       >
         <span className="demo-chip">Exploratory module</span>
-        <Button onClick={() => setEdit("new")}>
+        <Button disabled={!can("barrels.edit")} onClick={() => setEdit("new")}>
           <Plus size={16} />
           New barrel
         </Button>
@@ -206,6 +207,7 @@ export function Barrels({
       />
       {view === "board" ? (
         <Kanban
+          canMove={(b) => can("barrels.edit", b)}
           records={rows}
           stages={barrelStages}
           status={(r) => r.status}
@@ -332,7 +334,7 @@ function BarrelForm({
   record: Barrel | null;
   close: () => void;
 }) {
-  const { data, setData } = useStore();
+  const { data, setData, can, resetDemo } = useStore();
   return (
     <form
       onSubmit={(e) => {
@@ -349,12 +351,13 @@ function BarrelForm({
           status: String(f.get("status")),
         };
         if (!b.name) return;
-        setData((d) => ({
+        const saved = setData((d) => ({
           ...d,
           barrels: record
             ? d.barrels.map((x) => (x.id === b.id ? b : x))
             : [b, ...d.barrels],
         }));
+        if (!saved) return;
         toast.success(record ? "Barrel updated" : "Barrel created");
         close();
       }}
@@ -428,7 +431,12 @@ function BarrelForm({
         <Button variant="outline" type="button" onClick={close}>
           Cancel
         </Button>
-        <Button type="submit">Save barrel</Button>
+        <Button
+          disabled={!can("barrels.edit", record || undefined)}
+          type="submit"
+        >
+          Save barrel
+        </Button>
       </div>
     </form>
   );
@@ -489,7 +497,7 @@ export function Reports() {
               ],
               [
                 "Task completion",
-                `${Math.round((done / data.tasks.length) * 100)}%`,
+                `${Math.round((done / Math.max(1, data.tasks.length)) * 100)}%`,
               ],
               ["Cases resolved", resolved],
               [
@@ -621,7 +629,7 @@ export function Reports() {
   );
 }
 export function Settings() {
-  const { data, setData } = useStore();
+  const { data, setData, can, resetDemo } = useStore();
   const [reset, setReset] = useState(false);
   return (
     <>
@@ -699,22 +707,22 @@ export function Settings() {
         <Card className="settings-card">
           <PanelHeading
             title="Your team"
-            subtitle="Demo organization · Four mock team members"
+            subtitle={`Demo organization · ${data.users.length} fictional users`}
           />
-          {["Olivia Parker", "James Wilson", "Sofia Chen", "Marcus Reed"].map(
-            (m, i) => (
-              <div className="team-row" key={m}>
-                <Avatar name={m} size={34} />
-                <span>
-                  <strong>{m}</strong>
-                  <small>
-                    {m.toLowerCase().replace(" ", ".")}@bottlenexus.example
-                  </small>
-                </span>
-                <Badge>{i === 0 ? "Admin" : "Member"}</Badge>
+          {data.users.map((u) => (
+            <div className="team-row" key={u.id}>
+              <Avatar name={u.name} size={34} />
+              <span>
+                <strong>{u.name}</strong>
+                <small>{u.email}</small>
+              </span>
+              <div className="role-tags">
+                {u.roles.map((r) => (
+                  <span key={r}>{r}</span>
+                ))}
               </div>
-            ),
-          )}
+            </div>
+          ))}
         </Card>
         <Card className="settings-card">
           <PanelHeading
@@ -753,7 +761,7 @@ export function Settings() {
             <Button
               variant="destructive"
               onClick={() => {
-                setData(seed());
+                resetDemo();
                 setReset(false);
                 toast.success("Demo workspace restored");
               }}

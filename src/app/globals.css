@@ -5194,3 +5194,583 @@ tbody tr:last-child td {
     min-width: 170px;
   }
 }
+
+/* Browser-local role and business module previews. */
+.demo-role-switcher {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 11px;
+  border: 1px solid #ddd3ed;
+  border-radius: 10px;
+  background: #faf7ff;
+  color: #7753aa;
+  min-width: 260px;
+  max-width: 345px;
+}
+.demo-role-switcher label {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 3px;
+}
+.demo-role-switcher label > span {
+  font-size: 9px;
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+}
+.demo-role-switcher select {
+  font: inherit;
+  font-size: 11px;
+  background: transparent;
+  border: 0;
+  color: #3d314d;
+  max-width: 295px;
+  outline-offset: 3px;
+}
+.role-session-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: #6d527e;
+  border: 1px solid #e8e0f0;
+  background: #faf7fd;
+  padding: 10px 13px;
+  border-radius: 9px;
+  margin-bottom: 22px;
+}
+.role-session-banner > span {
+  font-weight: 650;
+}
+.role-session-banner small {
+  margin-left: auto;
+  color: #8a8293;
+  font-size: 10px;
+}
+.role-demo-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: #f5f1fb;
+  border: 1px solid #e8dff3;
+  border-radius: 9px;
+  padding: 14px 16px;
+  font-size: 11px;
+  color: #746184;
+  line-height: 1.65;
+  margin: 16px 0;
+}
+.role-demo-note svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.role-demo-note.finance {
+  background: #f1f7fc;
+  border-color: #dce9f3;
+  color: #57738c;
+}
+.view-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 16px 0;
+  color: #8a8198;
+  font-size: 10px;
+}
+.view-controls > span {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-right: 4px;
+}
+.view-controls > .input {
+  width: 200px;
+  min-width: 140px;
+  max-width: 240px;
+  height: 32px;
+  font-size: 11px;
+}
+.view-controls small {
+  margin-left: auto;
+  font-size: 9px;
+}
+.view-controls .btn {
+  font-size: 10px;
+  height: 30px;
+}
+.column-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+  margin: 25px 0;
+}
+.column-options label,
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+.module-toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 17px 20px;
+  border-bottom: 1px solid #efebf4;
+}
+.module-toolbar > span {
+  font-size: 10px;
+  color: #958a9f;
+  margin-left: auto;
+}
+.module-toolbar > .input {
+  width: auto;
+  max-width: 230px;
+}
+.role-tags {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.role-tags > span {
+  font-size: 10px;
+  border-radius: 5px;
+  background: #f1eaf9;
+  color: #7c5b9e;
+  padding: 4px 7px;
+}
+.role-catalog {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.role-catalog > .card {
+  padding: 24px;
+}
+.role-catalog h3 {
+  font-size: 14px;
+  margin: 16px 0 8px;
+}
+.role-catalog p {
+  font-size: 11px;
+  color: #8c8295;
+  line-height: 1.8;
+  min-height: 58px;
+}
+.fixed-role {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  font-size: 9px;
+  color: #9d8baa;
+  margin-top: 20px;
+}
+.role-selection {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.role-selection label {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #eee7f3;
+  cursor: pointer;
+}
+.role-selection input {
+  margin-top: 3px;
+  accent-color: #9365c5;
+}
+.role-selection span {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.role-selection strong {
+  font-size: 12px;
+}
+.role-selection small {
+  font-size: 10px;
+  color: #988b9e;
+  line-height: 1.6;
+}
+.inline-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.inline-actions .btn {
+  white-space: nowrap;
+}
+.table-link {
+  text-align: left;
+  color: #8761b4;
+  text-decoration: none;
+  font-weight: 550;
+}
+.table-link:hover {
+  text-decoration: underline;
+}
+.wrap-cell {
+  white-space: normal;
+  max-width: 340px;
+  min-width: 220px;
+  line-height: 1.6;
+}
+.config-stage,
+.config-field {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid #efe9f3;
+  font-size: 12px;
+}
+.config-stage > svg {
+  color: #b1a3bf;
+}
+.config-field > span {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.config-field small {
+  font-size: 10px;
+  color: #998ca4;
+}
+.dashboard-layout-options {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 10px;
+  color: #95869f;
+  margin-top: 18px;
+}
+.dashboard-layout-options > span {
+  font-weight: 600;
+}
+.dashboard-layout-options label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+.dashboard-layout-options input {
+  accent-color: #9970c8;
+}
+.role-account-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  width: 100%;
+  padding: 17px 22px;
+  border-top: 1px solid #f0ebf4;
+  font-size: 11px;
+}
+.role-account-row:hover {
+  background: #fbf9fd;
+}
+.role-account-row
+  > span:not(.tile-icon):not(.badge):not(.account-logo):not(.avatar) {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+.role-account-row strong {
+  font-size: 11px;
+  font-weight: 600;
+}
+.role-account-row small {
+  font-size: 10px;
+  color: #a092aa;
+}
+.role-account-row > svg {
+  color: #b8a8c9;
+}
+.role-account-row .badge {
+  flex-shrink: 0;
+}
+.finance-dashboard-total {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  padding: 22px;
+  color: #9d78c5;
+}
+.finance-dashboard-total > span {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.finance-dashboard-total small {
+  color: #a092aa;
+  font-size: 10px;
+}
+.finance-dashboard-total strong {
+  font-size: 26px;
+  letter-spacing: -1px;
+  color: #46384f;
+}
+.segmented {
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  background: #f5f2f8;
+  border-radius: 7px;
+}
+.segmented button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  padding: 6px 10px;
+  border-radius: 5px;
+  color: #9685a4;
+}
+.segmented button.selected {
+  background: white;
+  box-shadow: 0 1px 4px #32204412;
+  color: #855cad;
+}
+.calendar-week,
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+.calendar-week {
+  background: #faf8fc;
+  border-bottom: 1px solid #eee8f4;
+  padding: 14px 0;
+  color: #a291ae;
+  font-size: 10px;
+  text-align: center;
+}
+.calendar-day {
+  min-height: 116px;
+  border-right: 1px solid #eee8f4;
+  border-bottom: 1px solid #eee8f4;
+  padding: 10px;
+  overflow: hidden;
+}
+.calendar-day > span {
+  font-size: 10px;
+  color: #9c8ba8;
+}
+.calendar-day.empty {
+  background: #fcfafc;
+}
+.calendar-day button {
+  display: block;
+  width: 100%;
+  font-size: 9px;
+  background: #f0e7fa;
+  color: #8259ae;
+  border-radius: 4px;
+  padding: 6px;
+  text-align: left;
+  margin-top: 5px;
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.activity-history-list {
+  max-height: 450px;
+  overflow: auto;
+  padding: 0 22px 18px;
+}
+.followup-account {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: center;
+  border-bottom: 1px solid #eee8f3;
+  padding: 12px 0;
+}
+.followup-account .identity > span {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  gap: 4px;
+  font-size: 11px;
+}
+.followup-account small {
+  font-size: 9px;
+  color: #a18eae;
+}
+.followup-account > .input {
+  width: 160px;
+}
+.retailer-links {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  align-items: flex-start;
+  font-size: 10px;
+  color: #9370b3;
+}
+.report-progress-row {
+  display: grid;
+  grid-template-columns: 90px 1fr 30px;
+  align-items: center;
+  gap: 20px;
+  font-size: 11px;
+  padding: 15px 0;
+}
+.duplicate-warning {
+  border: 1px solid #eed7ac;
+  background: #fff9ed;
+  color: #a07731;
+  padding: 13px 16px;
+  font-size: 11px;
+  border-radius: 7px;
+  margin: 18px 0;
+  line-height: 1.7;
+}
+fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+button:disabled,
+select:disabled,
+input:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+input[readonly],
+textarea[readonly] {
+  background: #faf8fc;
+}
+.input:disabled {
+  background: #f7f5fa;
+}
+.role-selection input,
+.column-options input {
+  accent-color: #9870c8;
+}
+@media (min-width: 1100px) {
+  .topbar .demo-indicator {
+    display: none;
+  }
+}
+@media (max-width: 1200px) {
+  .demo-role-switcher {
+    min-width: 235px;
+    max-width: 280px;
+  }
+  .demo-role-switcher select {
+    max-width: 235px;
+  }
+  .role-catalog {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .topbar .search-container {
+    max-width: 180px;
+  }
+}
+@media (max-width: 800px) {
+  .demo-role-switcher {
+    min-width: 180px;
+    max-width: 240px;
+    padding: 5px 8px;
+  }
+  .demo-role-switcher select {
+    font-size: 10px;
+    max-width: 193px;
+  }
+  .role-session-banner {
+    flex-wrap: wrap;
+  }
+  .role-session-banner small {
+    width: 100%;
+    margin-left: 22px;
+  }
+  .role-catalog {
+    grid-template-columns: 1fr;
+  }
+  .view-controls small {
+    width: 100%;
+    margin: 3px 0;
+  }
+  .calendar-day {
+    min-height: 85px;
+    padding: 5px;
+  }
+  .calendar-day button {
+    font-size: 8px;
+  }
+  .role-account-row {
+    padding: 14px;
+  }
+  .module-toolbar {
+    padding: 14px;
+  }
+  .module-toolbar > span {
+    margin-left: 0;
+  }
+  .inline-actions {
+    flex-wrap: wrap;
+  }
+}
+@media (max-width: 600px) {
+  .topbar {
+    padding: 0 15px;
+    gap: 10px;
+  }
+  .breadcrumbs {
+    flex: 0 0 18px;
+  }
+  .breadcrumbs > *:not(.mobile-toggle) {
+    display: none;
+  }
+  .topbar-actions {
+    flex: 1;
+    min-width: 0;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+  .topbar .demo-indicator {
+    display: none;
+  }
+  .demo-role-switcher {
+    min-width: 0;
+    max-width: 260px;
+    flex: 1;
+  }
+  .demo-role-switcher > svg {
+    width: 14px;
+    flex-shrink: 0;
+  }
+  .demo-role-switcher label {
+    width: 100%;
+  }
+  .demo-role-switcher select {
+    width: 100%;
+    max-width: none;
+    text-overflow: ellipsis;
+  }
+  .topbar-actions > .top-avatar {
+    flex-shrink: 0;
+  }
+  .topbar-actions > .notification-button,
+  .topbar-actions > .top-search {
+    flex-shrink: 0;
+  }
+  .profile-role-description {
+    font-size: 12px;
+    line-height: 1.7;
+    color: #8f809a;
+  }
+}

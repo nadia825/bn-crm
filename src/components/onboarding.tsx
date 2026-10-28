@@ -27,7 +27,7 @@ export function Onboarding({
   approvalsOnly?: boolean;
   onReview?: (a: Account) => void;
 }) {
-  const { data, setData } = useStore();
+  const { data, setData, can, canCheck } = useStore();
   const allBrands = data.accounts.filter((a) => a.type === "Corporate Brand");
   const brands = approvalsOnly
     ? allBrands.filter((a) => a.approval === "Pending approval")
@@ -241,6 +241,7 @@ export function Onboarding({
                     type="checkbox"
                     checked={a.checks[i]}
                     disabled={
+                      !canCheck(a, i) ||
                       a.status === "Active" ||
                       a.approval === "Pending approval" ||
                       verifying
@@ -274,7 +275,7 @@ export function Onboarding({
                     </small>
                   </span>
                 </label>
-                <Avatar name={managers[i % 4]} size={26} />
+                <Avatar name={a.checkOwners?.[i] || a.manager} size={26} />
                 <Badge>{a.checks[i] ? "Done" : "Pending"}</Badge>
               </div>
             ))}
@@ -298,6 +299,7 @@ export function Onboarding({
               </div>
               <Button
                 disabled={
+                  !can("onboarding.verify", a) ||
                   !all ||
                   verifying ||
                   a.status === "Active" ||
@@ -348,7 +350,11 @@ export function Onboarding({
                       there updates this record automatically.
                     </p>
                   </div>
-                  <Button variant="outline" onClick={() => onReview?.(a)}>
+                  <Button
+                    disabled={!can("onboarding.approve", a)}
+                    variant="outline"
+                    onClick={() => onReview?.(a)}
+                  >
                     Review in Operations
                     <ArrowRight size={15} />
                   </Button>
@@ -367,6 +373,7 @@ export function Onboarding({
                   />
                   <div className="approval-actions">
                     <Button
+                      disabled={!can("onboarding.approve", a)}
                       variant="outline"
                       onClick={() => {
                         if (!reason.trim()) {
@@ -386,6 +393,7 @@ export function Onboarding({
                       Reject & return
                     </Button>
                     <Button
+                      disabled={!can("onboarding.approve", a)}
                       onClick={() => {
                         if (!all || a.verification !== "Verified") return;
                         update(
@@ -413,7 +421,12 @@ export function Onboarding({
                     : "After configuration is verified, submit this brand for a final Operations review."}
                 </p>
                 <Button
-                  disabled={!all || a.verification !== "Verified" || verifying}
+                  disabled={
+                    !can("onboarding.submit", a) ||
+                    !all ||
+                    a.verification !== "Verified" ||
+                    verifying
+                  }
                   onClick={() => {
                     update(
                       { approval: "Pending approval" },

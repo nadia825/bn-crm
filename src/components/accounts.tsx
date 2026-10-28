@@ -40,6 +40,8 @@ import {
   SortHead,
   Toolbar,
 } from "./shared";
+import { ViewControls, ColumnVisibility } from "./saved-views";
+import { canPage } from "@/lib/access";
 import { toast } from "sonner";
 export function Accounts({
   openAccount,
@@ -50,9 +52,9 @@ export function Accounts({
   create: () => void;
   accountType?: Account["type"];
 }) {
-  const { data } = useStore();
+  const { data, can, actor } = useStore();
   const allAccounts = data.accounts.filter((a) =>
-    accountType ? a.type === accountType : a.type !== "Supplier",
+    accountType ? a.type === accountType : true,
   );
   const allLabel =
     accountType === "Corporate Brand"
@@ -66,10 +68,30 @@ export function Accounts({
   const [sort, setSort] = useState("name");
   const [asc, setAsc] = useState(true);
   const [page, setPage] = useState(0);
+  const columns = [
+    "Account",
+    "Type",
+    "Manager",
+    "Email",
+    "Status",
+    "Retailer",
+    "Shopify",
+    "Activity",
+    "Open",
+  ];
+  const [selectedColumns, setSelectedColumns] = useState(columns);
+  const module = `accounts-${accountType || "all"}`.replace(/[^a-z0-9-]/gi, "");
+  const applyView = (v: Record<string, unknown>) => {
+    setQuery(String(v.query || ""));
+    setFilter(String(v.filter || allLabel));
+    setManager(String(v.manager || "All managers"));
+    setSort(String(v.sort || "name"));
+    setAsc(v.asc !== false);
+    setPage(0);
+  };
   const rows = allAccounts
     .filter(
       (a) =>
-        a.type !== "Supplier" &&
         (filter === allLabel || a.type === filter || a.status === filter) &&
         (manager === "All managers" || a.manager === manager) &&
         `${a.name} ${a.email} ${a.retailers.join(" ")}`
@@ -105,7 +127,15 @@ export function Accounts({
           <Download size={15} />
           Export
         </Button>
-        <Button onClick={create}>
+        <Button
+          disabled={
+            !can("accounts.create", {
+              type: accountType || "Corporate Brand",
+              manager: actor.name,
+            })
+          }
+          onClick={create}
+        >
           <Plus size={16} />
           {accountType === "Corporate Brand"
             ? "New brand"
@@ -123,10 +153,7 @@ export function Accounts({
               setPage(0);
             }}
           >
-            All accounts{" "}
-            <span>
-              {allAccounts.filter((a) => a.type !== "Supplier").length}
-            </span>
+            All accounts <span>{allAccounts.length}</span>
           </button>
           <button
             className={filter === "Corporate Brand" ? "active" : ""}
@@ -154,9 +181,35 @@ export function Accounts({
               {allAccounts.filter((a) => a.type === "Affiliate").length}
             </span>
           </button>
+          <button
+            className={filter === "Supplier" ? "active" : ""}
+            onClick={() => {
+              setFilter("Supplier");
+              setPage(0);
+            }}
+          >
+            Suppliers{" "}
+            <span>
+              {allAccounts.filter((a) => a.type === "Supplier").length}
+            </span>
+          </button>
         </div>
       )}
-      <Card>
+      <ViewControls
+        module={module}
+        snapshot={{ query, filter, manager, sort, asc }}
+        defaults={{ filter: allLabel, sort: "name", asc: true, columns }}
+        onApply={applyView}
+        columns={columns}
+        selectedColumns={selectedColumns}
+        onColumns={setSelectedColumns}
+      />
+      <ColumnVisibility
+        module={module}
+        columns={columns}
+        selected={selectedColumns}
+      />
+      <Card data-view-table={module}>
         <Toolbar
           query={query}
           setQuery={(s) => {
@@ -175,13 +228,21 @@ export function Accounts({
           }}
           filterOptions={[
             allLabel,
-            ...(!accountType ? ["Corporate Brand", "Affiliate"] : []),
+            ...(!accountType
+              ? ["Corporate Brand", "Affiliate", "Supplier"]
+              : []),
             "Active",
             ...(accountType === "Corporate Brand"
               ? ["Onboarding"]
               : accountType === "Affiliate"
-                ? ["Prospect", "On Hold", "Rejected"]
-                : ["Onboarding", "Prospect", "On Hold", "Rejected"]),
+                ? ["Prospect", "On Hold", "Rejected", "Inactive"]
+                : [
+                    "Onboarding",
+                    "Prospect",
+                    "On Hold",
+                    "Rejected",
+                    "Inactive",
+                  ]),
           ]}
         />
         <div className="table-scroll">
@@ -337,7 +398,7 @@ export function AccountProfile({
   openItem: (i: WorkItem, k: "tasks" | "cases") => void;
   navigate: (s: string) => void;
 }) {
-  const { data, setData } = useStore();
+  const { data, setData, can, actor } = useStore();
   const [tab, setTab] = useState("Overview");
   const [note, setNote] = useState("");
   const a = data.accounts.find((a) => a.id === id);
@@ -346,7 +407,7 @@ export function AccountProfile({
     cases = data.cases.filter((c) => c.accountId === id);
   const addNote = () => {
     if (!note.trim()) return;
-    setData((d) => ({
+    const saved = setData((d) => ({
       ...d,
       accounts: d.accounts.map((x) =>
         x.id === id
@@ -358,6 +419,7 @@ export function AccountProfile({
           : x,
       ),
     }));
+    if (!saved) return;
     setNote("");
     toast.success("Note added to account");
   };
@@ -382,7 +444,12 @@ export function AccountProfile({
             <Avatar name={a.manager} size={23} />
             {a.manager}
           </span>
-          <Button variant="outline" size="sm" onClick={() => edit(a)}>
+          <Button
+            disabled={!can("accounts.edit", a)}
+            variant="outline"
+            size="sm"
+            onClick={() => edit(a)}
+          >
             <Pencil size={13} />
             Edit account
           </Button>
@@ -397,15 +464,17 @@ export function AccountProfile({
             "Tasks & cases",
             "Activity",
             "Notes & files",
-          ].map((t) => (
-            <button
-              key={t}
-              className={tab === t ? "active" : ""}
-              onClick={() => setTab(t)}
-            >
-              {t}
-            </button>
-          ))}
+          ]
+            .filter((t) => t !== "Commercial" || can("billing.read"))
+            .map((t) => (
+              <button
+                key={t}
+                className={tab === t ? "active" : ""}
+                onClick={() => setTab(t)}
+              >
+                {t}
+              </button>
+            ))}
         </div>
         <div className="profile-body">
           {tab === "Overview" && (
@@ -416,6 +485,21 @@ export function AccountProfile({
               </div>
               <div className="detail-grid">
                 <Info label="Account type" value={a.type} />
+                <Info
+                  label="BNX identifier"
+                  value={`${a.bnxId || "Not linked"}${a.bnxVerified ? " · Verified mock" : ""}`}
+                />
+                {data.configuration.customFields
+                  .filter(
+                    (f) => f.scope === "All accounts" || f.scope === a.type,
+                  )
+                  .map((f) => (
+                    <Info
+                      key={f.id}
+                      label={f.label}
+                      value={a.customFields?.[f.id] || "—"}
+                    />
+                  ))}
                 <Info label="Account manager" value={a.manager} />
                 <Info label="Email" value={a.email} />
                 <Info label="Pipeline stage" value={a.stage} />
@@ -574,6 +658,7 @@ export function AccountProfile({
                     </div>
                   ))}
                   <Button
+                    disabled={!canPage(actor, "Brand Onboarding", data)}
                     onClick={() => {
                       onClose();
                       navigate("Brand Onboarding");
@@ -656,7 +741,11 @@ export function AccountProfile({
                 onChange={(e) => setNote(e.target.value)}
                 placeholder="Add context for your team…"
               />
-              <Button size="sm" disabled={!note.trim()} onClick={addNote}>
+              <Button
+                size="sm"
+                disabled={!note.trim() || !can("accounts.note", a)}
+                onClick={addNote}
+              >
                 <MessageSquare size={14} />
                 Add note
               </Button>
@@ -690,6 +779,7 @@ export function AccountProfile({
                 Attach a file reference
                 <input
                   type="file"
+                  disabled={!can("accounts.note", a)}
                   multiple
                   onChange={(e) => {
                     const names = Array.from(e.target.files || []).map(

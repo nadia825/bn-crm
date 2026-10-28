@@ -21,6 +21,9 @@ import {
   ChevronRight,
   ChevronDown,
   Check,
+  ShieldCheck,
+  CreditCard,
+  CalendarDays,
   Plus,
   HelpCircle,
   ArrowUpRight,
@@ -41,10 +44,26 @@ import {
   DialogTitle,
   DialogDescription,
 } from "./ui/dialog";
-import { Badge, Input } from "./ui/primitives";
+import { Badge, Input, Card } from "./ui/primitives";
 import { Avatar, AccountLogo, EmptyState } from "./shared";
 import { Dashboard } from "./dashboard";
 import { WorkspaceDashboard } from "./workspace-dashboard";
+import { RoleDashboard } from "./role-dashboard";
+import {
+  UsersRoles,
+  Configuration,
+  AuditLog,
+  Finance,
+  Activities,
+  Retailers,
+  TeamAssignments,
+} from "./mock-pages";
+import {
+  canPage,
+  defaultWorkspace,
+  allowedWorkspaces,
+  roleDescriptions,
+} from "@/lib/access";
 import {
   WORKSPACES,
   navigationFor,
@@ -76,6 +95,18 @@ const pageIcons: Record<string, typeof Building2> = {
   Reports: ChartNoAxesCombined,
   Settings: SettingsIcon,
   "Company Overview": Building2,
+  "All Accounts": Building2,
+  Activities: CalendarDays,
+  "Follow-ups": CalendarDays,
+  "Pending Approvals": ShieldCheck,
+  "Users & Roles": Users,
+  Configuration: SettingsIcon,
+  "Audit Log": ShieldCheck,
+  Billing: CreditCard,
+  "Payment Follow-ups": CreditCard,
+  "Finance Reports": ChartNoAxesCombined,
+  Retailers: Building2,
+  "Team Assignments": Users,
 };
 const workspaceIcons = {
   brands: Building2,
@@ -92,7 +123,10 @@ export function CRM() {
   );
 }
 function Workspace() {
-  const { data, setData, ready } = useStore();
+  const { data, setData, ready, actor, demoUsers, switchDemoUser, can } =
+    useStore();
+  const [profile, setProfile] = useState(false);
+  const workspaceChoices = allowedWorkspaces(actor);
   const [route, setRoute] = useState<WorkspaceRoute>({
     workspace: "brands",
     page: "Dashboard",
@@ -100,14 +134,40 @@ function Workspace() {
   const { workspace, page } = route;
   const workspaceInfo = WORKSPACES[workspace];
   const WorkspaceIcon = workspaceIcons[workspace];
-  const nav = navigationFor(workspace).map((g) => ({
-    ...g,
-    items: g.items.map((i) => ({
-      name: i.page,
-      label: i.label,
-      icon: pageIcons[i.page] || Building2,
-    })),
-  }));
+  const nav = navigationFor(workspace)
+    .map((g) => ({
+      ...g,
+      items: g.items
+        .filter((i) => canPage(actor, i.page, data))
+        .map((i) => ({
+          name: i.page,
+          label:
+            i.page === "All Accounts"
+              ? actor.roles.includes("Account Manager") &&
+                !actor.roles.includes("System Admin") &&
+                !actor.roles.includes("Sales Manager")
+                ? "My accounts"
+                : actor.roles.includes("Viewer")
+                  ? "Accessible accounts"
+                  : i.label
+              : i.page === "Work Board" &&
+                  actor.roles.includes("Operations Member") &&
+                  !actor.roles.includes("System Admin") &&
+                  !actor.roles.includes("Operations Manager")
+                ? "Assigned work"
+                : i.page === "Tasks" &&
+                    actor.roles.some((r) =>
+                      ["Account Manager", "Operations Member"].includes(r),
+                    ) &&
+                    !actor.roles.some((r) =>
+                      ["System Admin", "Operations Manager"].includes(r),
+                    )
+                  ? "My tasks"
+                  : i.label,
+          icon: pageIcons[i.page] || Building2,
+        })),
+    }))
+    .filter((g) => g.items.length);
   const [onboardingId, setOnboardingId] = useState<string | undefined>();
   const [collapsed, setCollapsed] = useState(false);
   const [accountId, setAccountId] = useState<string | null>(null);
@@ -196,16 +256,20 @@ function Workspace() {
   };
   const reviewInOperations = (a: Account) => {
     setOnboardingId(a.id);
-    navigate("Brand Onboarding", "operations");
+    navigate("Pending Approvals", "operations");
   };
   const openAccount = (a: Account) => {
-    if (a) {
+    if (a && can("accounts.read", a)) {
       setSelected(null);
       setAccountId(a.id);
       setSearch(false);
     }
   };
   const openItem = (i: WorkItem, kind: "tasks" | "cases") => {
+    if (!can(kind === "tasks" ? "tasks.read" : "cases.read", i)) {
+      toast.error("This record is outside your demo role scope.");
+      return;
+    }
     setAccountId(null);
     setSelected({ id: i.id, kind });
     setSearch(false);
@@ -223,6 +287,40 @@ function Workspace() {
       lockType: !!workspaceInfo.accountType,
     });
   const group = nav.find((n) => n.items.some((i) => i.name === page))?.section;
+  const previewRole = (id: string) => {
+    const user = demoUsers.find((u) => u.id === id && u.active);
+    if (!user) return;
+    switchDemoUser(id);
+    setAccountId(null);
+    setSelected(null);
+    setEditor(null);
+    setSearch(false);
+    setProfile(false);
+    navigate(
+      user.roles.includes("System Admin") ? "Company Overview" : "Dashboard",
+      defaultWorkspace(user),
+    );
+  };
+  useEffect(() => {
+    if (!ready) return;
+    setAccountId(null);
+    setSelected(null);
+    setEditor(null);
+    if (
+      (!window.location.hash && actor.roles.includes("System Admin")) ||
+      !workspaceChoices.includes(workspace) ||
+      !canPage(actor, page, data)
+    )
+      navigate(
+        actor.roles.includes("System Admin") ? "Company Overview" : "Dashboard",
+        defaultWorkspace(actor),
+      );
+  }, [actor.id, actor.roles.join("|"), ready]);
+  const pageAllowed =
+    ready &&
+    actor.active &&
+    workspaceChoices.includes(workspace) &&
+    canPage(actor, page, data);
   const pending = scopedItems(data, "cases", workspace).filter(
     (c) => !["Closed", "Resolved"].includes(c.status),
   );
@@ -239,6 +337,13 @@ function Workspace() {
       `${t.id} ${t.title}`.toLowerCase().includes(query.toLowerCase()),
     )
     .slice(0, 4);
+  if (!ready)
+    return (
+      <div className="app-loading">
+        <span className="brand-mark">bn</span>
+        <strong>Opening your mock workspace…</strong>
+      </div>
+    );
   return (
     <div
       className={`app-shell ${collapsed ? "sidebar-collapsed" : ""} ${mobileOpen ? "mobile-nav-open" : ""}`}
@@ -304,7 +409,7 @@ function Workspace() {
               id="workspace-switcher"
             >
               <small>WORKSPACES</small>
-              {(Object.keys(WORKSPACES) as WorkspaceId[]).map((id) => {
+              {workspaceChoices.map((id) => {
                 const info = WORKSPACES[id];
                 const Icon = workspaceIcons[id];
                 return (
@@ -403,13 +508,13 @@ function Workspace() {
               </>
             )}
           </button>
-          <button className="user-profile" onClick={() => navigate("Settings")}>
-            <Avatar name="Olivia Parker" color="purple" size={34} />
+          <button className="user-profile" onClick={() => setProfile(true)}>
+            <Avatar name={actor.name} color="purple" size={34} />
             {!collapsed && (
               <>
                 <span>
-                  <strong>Olivia Parker</strong>
-                  <small>Organization admin</small>
+                  <strong>{actor.name}</strong>
+                  <small>{actor.roles.join(" + ")}</small>
                 </span>
                 <ChevronsUpDown size={14} />
               </>
@@ -446,6 +551,25 @@ function Workspace() {
             </strong>
           </div>
           <div className="topbar-actions">
+            <div className="demo-role-switcher">
+              <ShieldCheck size={17} />
+              <label>
+                <span>Demo role · Preview only</span>
+                <select
+                  aria-label="Demo role switcher"
+                  value={actor.id}
+                  onChange={(e) => previewRole(e.target.value)}
+                >
+                  {demoUsers
+                    .filter((u) => u.active)
+                    .map((u) => (
+                      <option value={u.id} key={u.id}>
+                        {u.roles.join(" + ")} — {u.name}
+                      </option>
+                    ))}
+                </select>
+              </label>
+            </div>
             <span className="demo-indicator">
               <span />
               Demo workspace
@@ -471,117 +595,184 @@ function Workspace() {
             <button
               className="top-avatar"
               aria-label="Open profile settings"
-              onClick={() => navigate("Settings")}
+              onClick={() => setProfile(true)}
             >
-              <Avatar name="Olivia Parker" size={31} color="purple" />
+              <Avatar name={actor.name} size={31} color="purple" />
             </button>
           </div>
         </header>
-        <main key={`${workspace}:${page}`} className="main-content">
-          {page === "Dashboard" && (
-            <WorkspaceDashboard
-              workspace={workspace}
-              navigate={navigate}
-              openAccount={openAccount}
-              openItem={openItem}
-              openOnboarding={openOnboarding}
-              createAccount={newAccount}
-              createWork={newWork}
-            />
-          )}
+        <main key={`${actor.id}:${workspace}:${page}`} className="main-content">
+          <div className="role-session-banner">
+            <ShieldCheck size={14} />
+            <span>{actor.roles.join(" + ")}</span>
+            <small>
+              {actor.roles.includes("Viewer") && actor.roles.length === 1
+                ? "Read-only designated records"
+                : "Role-based record and action checks"}{" "}
+              · Browser-local mockup
+            </small>
+          </div>
+          {!pageAllowed ? (
+            <Card className="workspace-empty-queue">
+              <ShieldCheck size={30} />
+              <h2>View unavailable for these demo roles</h2>
+              <p>
+                Switch the demo role in the header or return to your dashboard.
+              </p>
+              <Button
+                onClick={() => navigate("Dashboard", defaultWorkspace(actor))}
+              >
+                My dashboard
+              </Button>
+            </Card>
+          ) : (
+            <>
+              {page === "Dashboard" &&
+                !actor.roles.includes("System Admin") && (
+                  <RoleDashboard
+                    workspace={workspace}
+                    navigate={navigate}
+                    openAccount={openAccount}
+                    openItem={openItem}
+                    newWork={newWork}
+                    newAccount={newAccount}
+                  />
+                )}
+              {page === "Dashboard" && actor.roles.includes("System Admin") && (
+                <WorkspaceDashboard
+                  workspace={workspace}
+                  navigate={navigate}
+                  openAccount={openAccount}
+                  openItem={openItem}
+                  openOnboarding={openOnboarding}
+                  createAccount={newAccount}
+                  createWork={newWork}
+                />
+              )}
 
-          {page === "Company Overview" && (
-            <Dashboard
-              navigate={(s) =>
-                navigate(
-                  s,
-                  s === "Accounts" || s === "Brand Onboarding"
-                    ? "brands"
-                    : s === "Affiliate Pipeline"
-                      ? "affiliates"
-                      : "operations",
-                )
-              }
-              openAccount={openAccount}
-              openItem={openItem}
-              newWork={newWork}
-            />
+              {page === "Company Overview" && (
+                <RoleDashboard
+                  workspace={workspace}
+                  navigate={navigate}
+                  openAccount={openAccount}
+                  openItem={openItem}
+                  newWork={newWork}
+                  newAccount={newAccount}
+                />
+              )}
+              {page === "All Accounts" && (
+                <Accounts
+                  openAccount={openAccount}
+                  create={() => setEditor({ type: "account" })}
+                />
+              )}
+              {page === "Users & Roles" && <UsersRoles />}
+              {page === "Configuration" && <Configuration />}
+              {page === "Audit Log" && <AuditLog />}
+              {["Billing", "Payment Follow-ups", "Finance Reports"].includes(
+                page,
+              ) && (
+                <Finance
+                  mode={
+                    page as "Billing" | "Payment Follow-ups" | "Finance Reports"
+                  }
+                  openAccount={openAccount}
+                />
+              )}
+              {page === "Activities" && (
+                <Activities openAccount={openAccount} />
+              )}
+              {page === "Follow-ups" && (
+                <Activities followups openAccount={openAccount} />
+              )}
+              {page === "Retailers" && <Retailers openAccount={openAccount} />}
+              {page === "Team Assignments" && (
+                <TeamAssignments openAccount={openAccount} />
+              )}
+              {page === "Accounts" && (
+                <Accounts
+                  openAccount={openAccount}
+                  create={newAccount}
+                  accountType={workspaceInfo.accountType}
+                />
+              )}
+              {page === "Contacts" && (
+                <Contacts openAccount={openAccount} workspace={workspace} />
+              )}
+              {page === "Affiliate Pipeline" && (
+                <Pipeline
+                  openAccount={openAccount}
+                  create={() =>
+                    setEditor({
+                      type: "account",
+                      accountType: "Affiliate",
+                      lockType: true,
+                    })
+                  }
+                />
+              )}
+              {page === "Supplier Pipeline" && (
+                <Pipeline
+                  supplier
+                  openAccount={openAccount}
+                  create={() =>
+                    setEditor({
+                      type: "account",
+                      accountType: "Supplier",
+                      lockType: true,
+                    })
+                  }
+                />
+              )}
+              {page === "Brand Onboarding" && (
+                <Onboarding
+                  initialId={onboardingId}
+                  approvalsOnly={false}
+                  onReview={reviewInOperations}
+                />
+              )}
+              {page === "Pending Approvals" && (
+                <Onboarding
+                  approvalsOnly
+                  initialId={onboardingId}
+                  onReview={reviewInOperations}
+                />
+              )}
+              {page === "Work Board" && (
+                <WorkBoard
+                  workspace={workspace}
+                  openItem={openItem}
+                  create={newWork}
+                />
+              )}
+              {page === "Support Cases" && (
+                <WorkBoard
+                  workspace={workspace}
+                  kind="cases"
+                  openItem={openItem}
+                  create={() =>
+                    setEditor({
+                      type: "cases",
+                      accountScope: workspaceInfo.accountType,
+                    })
+                  }
+                />
+              )}
+              {page === "Tasks" && (
+                <WorkBoard
+                  workspace={workspace}
+                  taskView
+                  openItem={openItem}
+                  create={newWork}
+                />
+              )}
+              {page === "Barrel Management" && (
+                <Barrels openAccount={openAccount} />
+              )}
+              {page === "Reports" && <Reports />}
+              {page === "Settings" && <Settings />}
+            </>
           )}
-          {page === "Accounts" && (
-            <Accounts
-              openAccount={openAccount}
-              create={newAccount}
-              accountType={workspaceInfo.accountType}
-            />
-          )}
-          {page === "Contacts" && (
-            <Contacts openAccount={openAccount} workspace={workspace} />
-          )}
-          {page === "Affiliate Pipeline" && (
-            <Pipeline
-              openAccount={openAccount}
-              create={() =>
-                setEditor({
-                  type: "account",
-                  accountType: "Affiliate",
-                  lockType: true,
-                })
-              }
-            />
-          )}
-          {page === "Supplier Pipeline" && (
-            <Pipeline
-              supplier
-              openAccount={openAccount}
-              create={() =>
-                setEditor({
-                  type: "account",
-                  accountType: "Supplier",
-                  lockType: true,
-                })
-              }
-            />
-          )}
-          {page === "Brand Onboarding" && (
-            <Onboarding
-              initialId={onboardingId}
-              approvalsOnly={workspace === "operations"}
-              onReview={reviewInOperations}
-            />
-          )}
-          {page === "Work Board" && (
-            <WorkBoard
-              workspace={workspace}
-              openItem={openItem}
-              create={newWork}
-            />
-          )}
-          {page === "Support Cases" && (
-            <WorkBoard
-              workspace={workspace}
-              kind="cases"
-              openItem={openItem}
-              create={() =>
-                setEditor({
-                  type: "cases",
-                  accountScope: workspaceInfo.accountType,
-                })
-              }
-            />
-          )}
-          {page === "Tasks" && (
-            <WorkBoard
-              workspace={workspace}
-              taskView
-              openItem={openItem}
-              create={newWork}
-            />
-          )}
-          {page === "Barrel Management" && (
-            <Barrels openAccount={openAccount} />
-          )}
-          {page === "Reports" && <Reports />}
-          {page === "Settings" && <Settings />}
         </main>
       </div>
       <AccountProfile
@@ -709,7 +900,7 @@ function Workspace() {
             scopedItems(data, "tasks", workspace)
               .filter(
                 (t) =>
-                  t.assignee === "Olivia Parker" &&
+                  t.assignee === actor.name &&
                   !["Done", "Aborted"].includes(t.status),
               )
               .slice(0, 2)
@@ -729,6 +920,28 @@ function Workspace() {
                   <ChevronRight size={14} />
                 </button>
               ))}
+        </DialogContent>
+      </Dialog>
+      <Dialog open={profile} onOpenChange={setProfile}>
+        <DialogContent>
+          <DialogTitle>{actor.name}</DialogTitle>
+          <DialogDescription>
+            Fictional demo identity · {actor.email}
+          </DialogDescription>
+          <div className="role-tags">
+            {actor.roles.map((r) => (
+              <span key={r}>{r}</span>
+            ))}
+          </div>
+          {actor.roles.map((r) => (
+            <p className="profile-role-description" key={r}>
+              {roleDescriptions[r]}
+            </p>
+          ))}
+          <div className="info-callout">
+            Change the demo preview in the header. Role capabilities are
+            predefined; only System Admins can assign roles in Users & Roles.
+          </div>
         </DialogContent>
       </Dialog>
       <Dialog open={help} onOpenChange={setHelp}>

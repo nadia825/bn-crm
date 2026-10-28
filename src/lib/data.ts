@@ -1,3 +1,5 @@
+import { createDemoData } from "./demo-data.ts";
+import type { DemoData } from "./model.ts";
 export const managers = [
   "Olivia Parker",
   "James Wilson",
@@ -14,6 +16,7 @@ export const affiliateStages = [
   "Live",
   "On Hold",
   "Rejected",
+  "Inactive",
 ];
 export const workStages = [
   "New",
@@ -55,6 +58,10 @@ export const requirements = [
 export type Comment = { id: string; author: string; text: string; at: string };
 export type Account = {
   id: string;
+  bnxId?: string;
+  bnxVerified?: boolean;
+  customFields?: Record<string, string>;
+  checkOwners?: string[];
   name: string;
   type: "Corporate Brand" | "Affiliate" | "Supplier";
   manager: string;
@@ -102,7 +109,7 @@ export type Barrel = {
   sales: number;
   status: string;
 };
-export type Store = {
+export type Store = DemoData & {
   version: number;
   accounts: Account[];
   tasks: WorkItem[];
@@ -244,9 +251,11 @@ function makeAccount(name: string, i: number, type: Account["type"]): Account {
                       ? 5
                       : i < 32
                         ? 6
-                        : i < 34
+                        : i < 33
                           ? 7
-                          : 8
+                          : i < 34
+                            ? 8
+                            : 9
         ];
   const person = [
     "Alex Bennett",
@@ -272,7 +281,7 @@ function makeAccount(name: string, i: number, type: Account["type"]): Account {
           : "Prospect"
         : stage === "Live"
           ? "Active"
-          : ["On Hold", "Rejected"].includes(stage)
+          : ["On Hold", "Rejected", "Inactive"].includes(stage)
             ? stage
             : "Prospect",
     stage,
@@ -466,7 +475,9 @@ export function seed(): Store {
     sales: i % 5 < 2 ? 0 : i % 5 === 4 ? 240 : 24 + i * 7,
     status: barrelStages[i % 5],
   }));
+  const extra = createDemoData(accounts, tasks, cases, retailers);
   return {
+    ...extra,
     version: 1,
     accounts,
     tasks,

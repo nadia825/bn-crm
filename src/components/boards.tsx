@@ -13,6 +13,7 @@ import {
   Clock3,
   ArrowRight,
 } from "lucide-react";
+import { ViewControls, ColumnVisibility } from "./saved-views";
 import { toast } from "sonner";
 import { scopedItems, WORKSPACES, type WorkspaceId } from "@/lib/workspaces";
 import { useStore } from "@/lib/store";
@@ -49,7 +50,9 @@ export function Kanban<T extends { id: string }>({
   status,
   renderCard,
   onMove,
+  canMove = () => true,
 }: {
+  canMove?: (r: T) => boolean;
   records: T[];
   stages: string[];
   status: (r: T) => string;
@@ -71,7 +74,8 @@ export function Kanban<T extends { id: string }>({
           onDrop={(e) => {
             e.preventDefault();
             const id = e.dataTransfer.getData("text/plain");
-            if (records.some((r) => r.id === id)) onMove(id, stage);
+            if (records.some((r) => r.id === id && canMove(r)))
+              onMove(id, stage);
             setOver(null);
           }}
         >
@@ -101,7 +105,7 @@ export function Kanban<T extends { id: string }>({
                 <div
                   className="draggable-card"
                   key={r.id}
-                  draggable
+                  draggable={canMove(r)}
                   onDragStart={(e) => {
                     e.dataTransfer.setData("text/plain", r.id);
                     e.dataTransfer.effectAllowed = "move";
@@ -129,17 +133,29 @@ export function Pipeline({
   openAccount: (a: Account) => void;
   create: () => void;
 }) {
-  const { data, setData } = useStore();
+  const { data, setData, can, actor } = useStore();
   const [query, setQuery] = useState("");
   const [manager, setManager] = useState("All managers");
   const [filter, setFilter] = useState("All stages");
   const [view, setView] = useState(supplier ? "list" : "board");
-  const stages = supplier ? supplierStages : affiliateStages;
+  const [lifecycle, setLifecycle] = useState("Main pipeline");
+  const alternative = ["On Hold", "Rejected", "Inactive"];
+  const allStages = supplier
+    ? data.configuration.supplierStages
+    : [...affiliateStages, ...data.configuration.affiliateExtras];
+  const stages = supplier
+    ? allStages
+    : allStages.filter((s) =>
+        lifecycle === "Alternative states"
+          ? alternative.includes(s)
+          : !alternative.includes(s),
+      );
   const all = data.accounts.filter(
     (a) => a.type === (supplier ? "Supplier" : "Affiliate"),
   );
   const rows = all.filter(
     (a) =>
+      (supplier || stages.includes(a.stage)) &&
       (manager === "All managers" || a.manager === manager) &&
       (filter === "All stages" || a.stage === filter) &&
       `${a.name} ${a.retailers.join(" ")}`
@@ -147,7 +163,7 @@ export function Pipeline({
         .includes(query.toLowerCase()),
   );
   const move = (id: string, stage: string) => {
-    setData((d) => ({
+    const saved = setData((d) => ({
       ...d,
       accounts: d.accounts.map((a) =>
         a.id === id
@@ -157,7 +173,7 @@ export function Pipeline({
               status:
                 stage === "Live" || stage === "Active"
                   ? "Active"
-                  : ["Rejected", "On Hold"].includes(stage)
+                  : ["Rejected", "On Hold", "Inactive"].includes(stage)
                     ? stage
                     : "Prospect",
               lastActivity: "Just now",
@@ -166,6 +182,7 @@ export function Pipeline({
           : a,
       ),
     }));
+    if (!saved) return;
     toast.success(`Moved to ${stage}`);
   };
   return (
@@ -178,7 +195,15 @@ export function Pipeline({
             : "Turn promising conversations into lasting partnerships."
         }
       >
-        <Button onClick={create}>
+        <Button
+          disabled={
+            !can("accounts.create", {
+              type: supplier ? "Supplier" : "Affiliate",
+              manager: actor.name,
+            })
+          }
+          onClick={create}
+        >
           <Plus size={16} />
           {supplier ? "New supplier" : "New affiliate"}
         </Button>
@@ -205,6 +230,43 @@ export function Pipeline({
           Drag cards to update a stage. Open a card for details.
         </span>
       </div>
+      {!supplier && (
+        <div className="account-summary">
+          {["Main pipeline", "Alternative states"].map((v) => (
+            <button
+              key={v}
+              className={lifecycle === v ? "active" : ""}
+              onClick={() => {
+                setLifecycle(v);
+                setFilter("All stages");
+              }}
+            >
+              {v}
+              <span>
+                {
+                  all.filter((a) =>
+                    v === "Alternative states"
+                      ? alternative.includes(a.stage)
+                      : !alternative.includes(a.stage),
+                  ).length
+                }
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+      <ViewControls
+        module={supplier ? "suppliers" : "affiliates"}
+        snapshot={{ query, manager, filter, view, lifecycle }}
+        defaults={{ view: supplier ? "list" : "board" }}
+        onApply={(v) => {
+          setQuery(String(v.query || ""));
+          setManager(String(v.manager || "All managers"));
+          setFilter(String(v.filter || "All stages"));
+          setView(String(v.view || (supplier ? "list" : "board")));
+          setLifecycle(String(v.lifecycle || "Main pipeline"));
+        }}
+      />
       <Toolbar
         query={query}
         setQuery={setQuery}
@@ -220,6 +282,7 @@ export function Pipeline({
         <Kanban
           records={rows}
           stages={filter === "All stages" ? stages : [filter]}
+          canMove={(a) => can("pipeline.edit", a)}
           status={(r) => r.stage}
           onMove={move}
           renderCard={(a) => (
@@ -291,7 +354,8 @@ export function Pipeline({
                     <td>
                       <Select
                         label={`Stage for ${a.name}`}
-                        options={stages}
+                        options={allStages}
+                        disabled={!can("pipeline.edit", a)}
                         value={a.stage}
                         onChange={(e) => move(a.id, e.target.value)}
                       />
@@ -335,16 +399,32 @@ export function WorkBoard({
   openItem: (i: WorkItem, k: "tasks" | "cases") => void;
   create: () => void;
 }) {
-  const { data, setData } = useStore();
+  const { data, setData, can, actor } = useStore();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("All statuses");
   const [manager, setManager] = useState("All managers");
   const [view, setView] = useState(
     kind === "cases" || taskView ? "list" : "board",
   );
-  const [mine, setMine] = useState(false);
+  const [mine, setMine] = useState(
+    actor.roles.some((r) =>
+      ["Account Manager", "Operations Member"].includes(r),
+    ),
+  );
   const [sort, setSort] = useState("due");
   const [asc, setAsc] = useState(true);
+  const columns = [
+    "ID",
+    "Summary",
+    "Account",
+    "Status",
+    "Priority",
+    "Assignee",
+    "Due date",
+    "Open",
+  ];
+  const [selectedColumns, setSelectedColumns] = useState(columns);
+  const viewModule = `work-${workspace}-${kind}`;
   const stages = kind === "cases" ? caseStages : workStages;
   const records = scopedItems(data, kind, workspace);
   const rows = records
@@ -352,7 +432,7 @@ export function WorkBoard({
       (r) =>
         (filter === "All statuses" || r.status === filter) &&
         (manager === "All managers" || r.assignee === manager) &&
-        (!mine || r.assignee === "Olivia Parker") &&
+        (!mine || r.assignee === actor.name) &&
         `${r.title} ${r.id} ${data.accounts.find((a) => a.id === r.accountId)?.name}`
           .toLowerCase()
           .includes(query.toLowerCase()),
@@ -374,7 +454,7 @@ export function WorkBoard({
       if (item) openItem(item, kind);
       return;
     }
-    setData((d) => ({
+    const saved = setData((d) => ({
       ...d,
       [kind]: d[kind].map((t) =>
         t.id === id
@@ -386,6 +466,7 @@ export function WorkBoard({
           : t,
       ),
     }));
+    if (!saved) return;
     toast.success(`Status updated to ${status}`);
   };
   const isCase = kind === "cases";
@@ -400,7 +481,10 @@ export function WorkBoard({
         title={headings[0]}
         subtitle={`${WORKSPACES[workspace].name} workspace · ${headings[1]}`}
       >
-        <Button onClick={create}>
+        <Button
+          disabled={!can(kind === "cases" ? "cases.create" : "tasks.create")}
+          onClick={create}
+        >
           <Plus size={16} />
           {isCase ? "New case" : "New work request"}
         </Button>
@@ -422,7 +506,7 @@ export function WorkBoard({
           >
             My tasks{" "}
             <span>
-              {records.filter((t) => t.assignee === "Olivia Parker").length}
+              {records.filter((t) => t.assignee === actor.name).length}
             </span>
           </button>
         </div>
@@ -460,6 +544,33 @@ export function WorkBoard({
           </span>
         </div>
       )}
+      <ViewControls
+        module={viewModule}
+        snapshot={{ query, filter, manager, view, mine, sort, asc }}
+        defaults={{
+          view: kind === "cases" || taskView ? "list" : "board",
+          columns,
+        }}
+        columns={columns}
+        selectedColumns={selectedColumns}
+        onColumns={setSelectedColumns}
+        onApply={(v) => {
+          setQuery(String(v.query || ""));
+          setFilter(String(v.filter || "All statuses"));
+          setManager(String(v.manager || "All managers"));
+          setView(
+            String(v.view || (kind === "cases" || taskView ? "list" : "board")),
+          );
+          setMine(v.mine === true);
+          setSort(String(v.sort || "due"));
+          setAsc(v.asc !== false);
+        }}
+      />
+      <ColumnVisibility
+        module={viewModule}
+        columns={columns}
+        selected={selectedColumns}
+      />
       <Toolbar
         query={query}
         setQuery={setQuery}
@@ -475,6 +586,9 @@ export function WorkBoard({
         <Kanban
           records={rows}
           stages={filter === "All statuses" ? stages : [filter]}
+          canMove={(r) =>
+            can(kind === "cases" ? "cases.edit" : "tasks.edit", r)
+          }
           status={(r) => r.status}
           onMove={move}
           renderCard={(r) => (
@@ -509,7 +623,7 @@ export function WorkBoard({
           )}
         />
       ) : (
-        <Card>
+        <Card data-view-table={viewModule}>
           <div className="table-scroll">
             <table>
               <thead>
@@ -563,6 +677,12 @@ export function WorkBoard({
                     </td>
                     <td>
                       <Select
+                        disabled={
+                          !can(
+                            kind === "cases" ? "cases.edit" : "tasks.edit",
+                            r,
+                          )
+                        }
                         label={`Status for ${r.id}`}
                         value={r.status}
                         options={stages}
@@ -627,7 +747,7 @@ export function WorkDetail({
   openAccount: (a: Account) => void;
   openLinkedCase: (i: WorkItem) => void;
 }) {
-  const { data, setData } = useStore();
+  const { data, setData, can, actor } = useStore();
   const [comment, setComment] = useState("");
   const [tab, setTab] = useState("Comments");
   if (!selected) return null;
@@ -658,7 +778,12 @@ export function WorkDetail({
         <div className="profile-controls">
           <Badge>{r.priority}</Badge>
           <Badge>{r.category}</Badge>
-          <Button variant="outline" size="sm" onClick={() => edit(r, kind)}>
+          <Button
+            disabled={!can(kind === "cases" ? "cases.edit" : "tasks.edit", r)}
+            variant="outline"
+            size="sm"
+            onClick={() => edit(r, kind)}
+          >
             Edit details
           </Button>
         </div>
@@ -667,6 +792,9 @@ export function WorkDetail({
             <label className="field-label">
               Status
               <Select
+                disabled={
+                  !can(kind === "cases" ? "cases.edit" : "tasks.edit", r)
+                }
                 label="Record status"
                 value={r.status}
                 options={kind === "cases" ? caseStages : workStages}
@@ -688,9 +816,20 @@ export function WorkDetail({
             <label className="field-label">
               Assigned owner
               <Select
+                disabled={
+                  !can(kind === "cases" ? "cases.assign" : "tasks.assign", r) ||
+                  !actor.roles.some((r) =>
+                    ["System Admin", "Operations Manager"].includes(r),
+                  )
+                }
                 label="Assigned owner"
                 value={r.assignee}
-                options={managers}
+                options={Array.from(
+                  new Set([
+                    r.assignee,
+                    ...data.users.filter((u) => u.active).map((u) => u.name),
+                  ]),
+                )}
                 onChange={(e) =>
                   update(
                     { assignee: e.target.value },
@@ -706,6 +845,9 @@ export function WorkDetail({
             <label className="field-label">
               Follow-up reminder
               <Select
+                disabled={
+                  !can(kind === "cases" ? "cases.edit" : "tasks.edit", r)
+                }
                 label="Follow-up reminder"
                 options={[
                   "On due date",
@@ -761,6 +903,7 @@ export function WorkDetail({
             <div className="profile-section">
               <h3>Resolution</h3>
               <Textarea
+                readOnly={!can("cases.edit", r)}
                 aria-label="Case resolution"
                 placeholder="Document the outcome before resolving the case…"
                 value={r.resolution}
@@ -797,6 +940,7 @@ export function WorkDetail({
             <Plus size={15} />
             Add file reference
             <input
+              disabled={!can(kind === "cases" ? "cases.edit" : "tasks.edit", r)}
               type="file"
               multiple
               onChange={(e) => {
@@ -834,7 +978,10 @@ export function WorkDetail({
               />
               <Button
                 size="sm"
-                disabled={!comment.trim()}
+                disabled={
+                  !comment.trim() ||
+                  !can(kind === "cases" ? "cases.edit" : "tasks.edit", r)
+                }
                 onClick={() => {
                   update(
                     { comments: [...r.comments, event(comment.trim())] },

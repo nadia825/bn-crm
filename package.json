@@ -6,7 +6,7 @@
     "dev": "next dev --hostname 127.0.0.1",
     "build": "next build --webpack",
     "typecheck": "tsc --noEmit",
-    "test:data": "node --experimental-strip-types --test tests/mock-data.test.mjs"
+    "test:data": "node --experimental-strip-types --test tests/*.test.mjs"
   },
   "dependencies": {
     "next": "^16.0.0",

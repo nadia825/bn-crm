@@ -20,6 +20,7 @@ import {
   DialogDescription,
 } from "./ui/dialog";
 import { Input, Textarea, Select } from "./ui/primitives";
+import { possibleDuplicates } from "@/lib/mutations";
 import { toast } from "sonner";
 export type Editor =
   | {
@@ -60,11 +61,15 @@ function AccountForm({
   editor: Extract<Editor, { type: "account" }>;
   onClose: () => void;
 }) {
-  const { data, setData } = useStore();
+  const { data, setData, actor, can } = useStore();
   const a = editor.record;
   const [type, setType] = useState<Account["type"]>(
     a?.type || editor.accountType || "Corporate Brand",
   );
+  const [draftName, setDraftName] = useState(a?.name || "");
+  const [draftEmail, setDraftEmail] = useState(a?.email || "");
+  const [bnxId, setBnxId] = useState(a?.bnxId || "");
+  const duplicates = possibleDuplicates(data, draftName, draftEmail, a?.id);
   const [retailers, setRetailers] = useState<string[]>(a?.retailers || []);
   const [stage, setStage] = useState(
     a?.stage ||
@@ -86,6 +91,14 @@ function AccountForm({
         `${type === "Corporate Brand" ? "BR" : type === "Affiliate" ? "AF" : "SUP"}-${crypto.randomUUID().slice(0, 6)}`,
       name,
       type,
+      bnxId: bnxId.trim() || undefined,
+      bnxVerified: a?.bnxVerified || false,
+      customFields: Object.fromEntries(
+        data.configuration.customFields
+          .filter((x) => x.scope === "All accounts" || x.scope === type)
+          .map((x) => [x.id, String(f.get(`custom:${x.id}`) || "")]),
+      ),
+      checkOwners: a?.checkOwners || Array(6).fill(String(f.get("manager"))),
       manager: String(f.get("manager")),
       email,
       status:
@@ -93,7 +106,7 @@ function AccountForm({
           ? a?.status || "Onboarding"
           : stage === "Live" || stage === "Active"
             ? "Active"
-            : ["On Hold", "Rejected"].includes(stage)
+            : ["On Hold", "Rejected", "Inactive"].includes(stage)
               ? stage
               : "Prospect",
       stage: type === "Corporate Brand" ? a?.stage || "Onboarding" : stage,
@@ -126,12 +139,13 @@ function AccountForm({
       verification: a?.verification || "Pending",
       approval: a?.approval || "Not submitted",
     };
-    setData((d) => ({
+    const saved = setData((d) => ({
       ...d,
       accounts: a
         ? d.accounts.map((x) => (x.id === a.id ? next : x))
         : [next, ...d.accounts],
     }));
+    if (!saved) return;
     toast.success(a ? "Account updated" : "Account created");
     onClose();
   };
@@ -151,14 +165,56 @@ function AccountForm({
       <DialogDescription>
         Build a lasting relationship, starting with the essentials.
       </DialogDescription>
+      {duplicates.length > 0 && (
+        <div className="duplicate-warning">
+          Possible duplicate: {duplicates.map((x) => x.name).join(", ")}. Review
+          the existing account before saving.
+        </div>
+      )}
       <div className="form-grid">
+        <label className="field-label full">
+          Mock BNX identifier
+          <Input
+            aria-label="BNX identifier"
+            value={bnxId}
+            readOnly={!!a?.bnxVerified}
+            onChange={(e) => setBnxId(e.target.value)}
+            placeholder="Optional · e.g. BNX-BR-901"
+          />
+          <small>
+            {a?.bnxVerified
+              ? "Verified mock identifier · Protected from changes"
+              : "Known mock IDs are verified locally. Confirmed duplicates are blocked."}
+          </small>
+        </label>
+        {data.configuration.customFields
+          .filter((x) => x.scope === "All accounts" || x.scope === type)
+          .map((x) => (
+            <label className="field-label" key={x.id}>
+              {x.label}
+              {x.sensitive ? " · Finance" : ""}
+              {x.type === "Select" ? (
+                <Select
+                  name={`custom:${x.id}`}
+                  options={["", ...x.options]}
+                  defaultValue={a?.customFields?.[x.id]}
+                />
+              ) : (
+                <Input
+                  name={`custom:${x.id}`}
+                  defaultValue={a?.customFields?.[x.id]}
+                />
+              )}
+            </label>
+          ))}
         <label className="field-label full">
           Account name
           <Input
             name="name"
             required
             autoFocus
-            defaultValue={a?.name}
+            value={draftName}
+            onChange={(e) => setDraftName(e.target.value)}
             placeholder="e.g. Oak & Ember"
           />
         </label>
@@ -168,7 +224,13 @@ function AccountForm({
             name="type"
             value={type}
             disabled={!!a || editor.lockType}
-            options={["Corporate Brand", "Affiliate", "Supplier"]}
+            options={(
+              ["Corporate Brand", "Affiliate", "Supplier"] as Account["type"][]
+            ).filter(
+              (t) =>
+                a?.type === t ||
+                can("accounts.create", { type: t, manager: actor.name }),
+            )}
             onChange={(e) => {
               const t = e.target.value as Account["type"];
               setType(t);
@@ -186,8 +248,18 @@ function AccountForm({
           Account manager
           <Select
             name="manager"
-            options={managers}
-            defaultValue={a?.manager || managers[0]}
+            options={Array.from(
+              new Set([
+                a?.manager || actor.name,
+                ...(can(
+                  "accounts.assign",
+                  a || { type, manager: actor.name },
+                ) && !actor.roles.includes("Account Manager")
+                  ? data.users.filter((u) => u.active).map((u) => u.name)
+                  : []),
+              ]),
+            )}
+            defaultValue={a?.manager || actor.name}
           />
         </label>
         <label className="field-label">
@@ -196,7 +268,8 @@ function AccountForm({
             required
             type="email"
             name="email"
-            defaultValue={a?.email}
+            value={draftEmail}
+            onChange={(e) => setDraftEmail(e.target.value)}
             placeholder="hello@brand.example"
           />
         </label>
@@ -214,7 +287,11 @@ function AccountForm({
             Pipeline stage
             <Select
               name="stage"
-              options={type === "Supplier" ? supplierStages : affiliateStages}
+              options={
+                type === "Supplier"
+                  ? data.configuration.supplierStages
+                  : [...affiliateStages, ...data.configuration.affiliateExtras]
+              }
               value={stage}
               onChange={(e) => setStage(e.target.value)}
             />
@@ -300,7 +377,7 @@ function WorkForm({
   editor: Exclude<Editor, { type: "account" }>;
   onClose: () => void;
 }) {
-  const { data, setData } = useStore();
+  const { data, setData, actor, can } = useStore();
   const r = editor.record;
   const isCase = editor.type === "cases";
   const [files, setFiles] = useState(r?.attachments || []);
@@ -349,7 +426,7 @@ function WorkForm({
       reminder: r?.reminder || "On due date",
     };
     const kind = editor.type;
-    setData((d) => ({
+    const saved = setData((d) => ({
       ...d,
       ...(isCase && r && r.accountId !== item.accountId
         ? {
@@ -373,6 +450,7 @@ function WorkForm({
         ? d[kind].map((x) => (x.id === r.id ? item : x))
         : [item, ...d[kind]],
     }));
+    if (!saved) return;
     toast.success(
       r ? "Changes saved" : isCase ? "Case created" : "Work request created",
     );
@@ -463,16 +541,21 @@ function WorkForm({
           Category
           <Select
             name="category"
-            defaultValue={r?.category}
+            defaultValue={
+              r?.category ||
+              (actor.roles.includes("Finance") ? "Billing" : undefined)
+            }
             options={
               isCase
-                ? [
-                    "Fulfillment",
-                    "Integration",
-                    "Inventory",
-                    "Billing",
-                    "Customer Request",
-                  ]
+                ? actor.roles.length === 1 && actor.roles.includes("Finance")
+                  ? ["Billing"]
+                  : [
+                      "Fulfillment",
+                      "Integration",
+                      "Inventory",
+                      "Billing",
+                      "Customer Request",
+                    ]
                 : [
                     "Brand Operations",
                     "Integration",
@@ -487,8 +570,17 @@ function WorkForm({
           Assignee
           <Select
             name="assignee"
-            options={managers}
-            defaultValue={r?.assignee}
+            options={Array.from(
+              new Set([
+                r?.assignee || actor.name,
+                ...(actor.roles.some((r) =>
+                  ["System Admin", "Operations Manager"].includes(r),
+                )
+                  ? data.users.filter((u) => u.active).map((u) => u.name)
+                  : []),
+              ]),
+            )}
+            defaultValue={r?.assignee || actor.name}
           />
         </label>
         <label className="field-label">

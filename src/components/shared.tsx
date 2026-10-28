@@ -1,4 +1,5 @@
 "use client";
+import { useStore } from "@/lib/store";
 import {
   ArrowUpRight,
   ArrowUpDown,
@@ -146,6 +147,7 @@ export function Toolbar({
   setView?: (s: string) => void;
   children?: React.ReactNode;
 }) {
+  const { data } = useStore();
   return (
     <div className="toolbar">
       <SearchField value={query} onChange={setQuery} />
@@ -164,7 +166,15 @@ export function Toolbar({
             label="Account manager"
             value={manager}
             onChange={(e) => setManager(e.target.value)}
-            options={["All managers", ...managers]}
+            options={[
+              "All managers",
+              ...Array.from(
+                new Set([
+                  ...managers,
+                  ...data.users.filter((u) => u.active).map((u) => u.name),
+                ]),
+              ),
+            ]}
           />
         </div>
       )}

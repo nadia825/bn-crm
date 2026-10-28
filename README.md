@@ -67,7 +67,7 @@ Then open `http://localhost:3001`. Use the same `BN_CRM_PORT` value for subseque
 
 ## Prototype boundaries
 
-No real authentication, database, external APIs, Shopify, Stripe, email delivery, or Bottle Nexus activation. Verification and Operations roles are simulated in the same session. Reminders are saved preferences surfaced in the notification panel; they do not schedule OS notifications. Attachments retain filenames only; sample file references contain no downloadable content. Historical analytics are explicitly illustrative, while current totals derive from shared state. Supplier stages are configured centrally in `data.ts`.
+No real authentication, database, external APIs, Shopify, Stripe, email delivery, or Bottle Nexus activation. Verification and Operations roles are simulated in the same session. Reminders are saved preferences surfaced in the notification panel; they do not schedule OS notifications. Attachments retain filenames only; sample file references contain no downloadable content. Historical analytics are explicitly illustrative, while current totals derive from shared state. Supplier stages and extra affiliate stages are managed in Configuration by the demo System Admin. Core affiliate stages and onboarding gates remain protected.
 
 ## Validation
 
@@ -80,3 +80,25 @@ The workspace switcher selects Brands, Affiliates, or Operations. Each has its o
 All workspaces use the same store and record IDs. Brand and affiliate directories filter the existing account type; tasks and cases are scoped through their linked account. Operations sees the complete set. Changing a case, completing a task, or approving a brand updates the same record in every applicable view. Submitting a verified brand queues it for Operations; approval or rejection happens in the Operations workspace. These are contextual workspaces, not separate databases or a production authorization boundary.
 
 Workspace URLs use hashes such as `#brands/dashboard`, `#affiliates/accounts`, and `#operations/work-board`. Global URLs use `#company/overview`, `#company/reports`, and `#company/settings`. Older single-workspace links still resolve to their appropriate context. The selected workspace is remembered separately under `bn-crm-navigation`; the existing `bn-crm-v0` records are preserved with no reset or duplication.
+
+## Role simulation and updated business modules
+
+The header's **Demo role switcher** previews seven fixed roles plus Maya Robinson's **Account Manager + Finance** combination. It changes navigation, dashboards, visible records and actions immediately. Brands, Affiliates and Operations remain connected business workspaces within this shared application.
+
+- System Admin: company dashboard, users with one or more fixed roles, shared views, selected account fields, pipeline configuration and critical-action audit history.
+- Sales Manager: acquisition pipelines, account directories, Account Manager assignments and team activities.
+- Account Manager: owned client accounts, follow-ups, meetings, notes and related tasks/cases.
+- Operations Manager: team work, assignments, cases, onboarding and approval queue.
+- Operations Member: assigned tasks/cases and assigned onboarding requirements.
+- Finance: authorized accounts, billing cases, fictional invoices, payment follow-ups and finance reports.
+- Viewer: designated account and report views with business editing disabled.
+
+Accounts, work lists, pipelines, activities and role dashboards support saved personal views. System Admin can save shared views. Account and work tables provide column customization; dashboards provide widget selection. Filters and selected views are remembered per demo user. All Accounts includes Brands, Affiliates and Suppliers without duplicating their records. Retailer profiles link back to client accounts. Affiliate On Hold, Rejected and historical Inactive records appear under Alternative states, separately from the acquisition pipeline.
+
+Known `BNX-*` identifiers are locally verified against fictional references. Duplicate names/emails warn in the account form, verified identifier collisions block saving, and verified identifiers cannot be changed. Example unlinked references are `BNX-BR-901` and `BNX-AF-901`. There is no actual BNX synchronization.
+
+The shared state layer checks every business mutation against the selected demo user's fixed roles, record scope, protected relationships and activation requirements. Rejected mutations append denied audit events; the UI cannot supply trusted audit events or forge a new history entry's author. Financial values and screens are projected only for authorized demo roles. These checks demonstrate intended product behavior; all code and data still reside in the browser and are **not a security boundary or production authentication**.
+
+`bn-crm-v0` remains version 1 with an additive migration, so prior accounts, notes and work remain intact. New demo identities, invoices, activities and configuration are added when missing. Existing assignments are preserved; migrated datasets may need Admin/Operations assignment to populate a newly introduced user's work list. `bn-crm-demo-user` stores the selected fictional identity, and `bn-crm-view:*` remembers the active saved view. No backend, API integration, external invitation, real payment or message delivery is implemented.
+
+The test suite also covers all role scopes, multi-role unions, denied writes, financial redaction, assignment restrictions, onboarding activation, verified duplicates, protected configuration, saved-view permissions and migration preservation.

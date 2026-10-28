@@ -55,24 +55,56 @@ export const workspaceNavigation: Record<WorkspaceId, NavigationGroup[]> = {
       section: "Delivery",
       items: [item("Work Board"), item("Tasks"), item("Support Cases")],
     },
-    { section: "Review", items: [item("Brand Onboarding", "Brand approvals")] },
+    {
+      section: "Review",
+      items: [item("Brand Onboarding"), item("Pending Approvals")],
+    },
     {
       section: "Partners & barrels",
       items: [item("Supplier Pipeline"), item("Barrel Management")],
     },
   ],
 };
+export const sharedGroups: NavigationGroup[] = [
+  {
+    section: "Across Bottle Nexus",
+    items: [
+      item("Company Overview", "Company overview"),
+      item("All Accounts"),
+      item("Activities"),
+      item("Follow-ups"),
+      item("Reports"),
+    ],
+  },
+  {
+    section: "Partners",
+    items: [item("Team Assignments"), item("Retailers")],
+  },
+  {
+    section: "Finance",
+    items: [
+      item("Billing"),
+      item("Payment Follow-ups"),
+      item("Finance Reports"),
+    ],
+  },
+  {
+    section: "Administration",
+    items: [
+      item("Users & Roles"),
+      item("Configuration"),
+      item("Audit Log"),
+      item("Settings"),
+    ],
+  },
+];
 export const sharedNavigation: NavigationGroup = {
   section: "Across Bottle Nexus",
-  items: [
-    item("Company Overview", "Company overview"),
-    item("Reports"),
-    item("Settings"),
-  ],
+  items: sharedGroups.flatMap((g) => g.items),
 };
 export const navigationFor = (id: WorkspaceId) => [
   ...workspaceNavigation[id],
-  sharedNavigation,
+  ...sharedGroups,
 ];
 export const pageSlug = (page: string) =>
   page === "Company Overview"
