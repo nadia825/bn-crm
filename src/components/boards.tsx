@@ -574,7 +574,8 @@ export function WorkBoard({
         }}
         columns={columns}
         selectedColumns={selectedColumns}
-        onColumns={setSelectedColumns}
+        onColumns={(value) => setSelectedColumns(["ID", ...value.filter((column) => column !== "ID" && columns.includes(column))])}
+        requiredColumns={["ID"]}
         onApply={(v) => {
           setQuery(String(v.query || ""));
           setFilter(String(v.filter || "All statuses"));

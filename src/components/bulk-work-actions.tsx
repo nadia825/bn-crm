@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useStore } from "@/lib/store";
 import { bulkWorkUpdate } from "@/lib/work-actions";
 import { caseStages, workStages, type WorkItem } from "@/lib/data";
@@ -12,6 +12,9 @@ export function BulkWorkActions({ kind, selected, clear }: { kind: "tasks" | "ca
   const [priority, setPriority] = useState("");
   const [assignee, setAssignee] = useState("");
   const [resolution, setResolution] = useState("");
+  useEffect(() => {
+    if (!selected.length) { setStatus(""); setPriority(""); setAssignee(""); setResolution(""); }
+  }, [selected.length]);
   const delegate = actor.roles.some((r) => ["System Admin", "Operations Manager"].includes(r));
   const resolving = kind === "cases" && ["Resolved", "Closed"].includes(status);
   const apply = async () => {
@@ -31,7 +34,7 @@ export function BulkWorkActions({ kind, selected, clear }: { kind: "tasks" | "ca
     <Select aria-label="Bulk priority" value={priority} onChange={(e) => setPriority(e.target.value)}><option value="">Keep priority</option>{["Low", "Medium", "High", "Urgent"].map((value) => <option key={value}>{value}</option>)}</Select>
     {delegate && <Select aria-label="Bulk assignee" value={assignee} onChange={(e) => setAssignee(e.target.value)}><option value="">Keep assignee</option>{data.users.filter((u) => u.active).map((u) => <option key={u.id} value={u.name}>{u.name}</option>)}</Select>}
     {resolving && <label className="field-label bulk-resolution">Resolution for selected cases<Textarea aria-label="Bulk case resolution" value={resolution} onChange={(e) => setResolution(e.target.value)} placeholder="Required for cases without an existing resolution" /></label>}
-    <Button disabled={saving || !(status || priority || assignee)} onClick={apply}>{saving ? "Saving…" : "Apply changes"}</Button>
+    <Button disabled={saving || !(status || priority || assignee) || (resolving && !resolution.trim() && selected.some((item) => !item.resolution.trim()))} onClick={apply}>{saving ? "Saving…" : "Apply changes"}</Button>
     <Button variant="ghost" disabled={saving} onClick={clear}>Clear selection</Button>
   </div>;
 }

@@ -139,7 +139,7 @@ export function Accounts({
     .sort((a, b) => compareAccounts(a, b, sort, asc));
   const pages = Math.max(1, Math.ceil(rows.length / pageSize));
   const current = Math.min(page, pages - 1);
-  useEffect(() => { setSelectedIds([]); }, [query, filter, manager, current, accountType]);
+  useEffect(() => { setSelectedIds([]); setNewOwner(""); }, [query, filter, manager, current, accountType]);
   const canReassign = (a: Account) => can("accounts.assign", a) && actor.roles.some((r) =>
     ["System Admin", "Sales Manager"].includes(r) || (r === "Operations Manager" && a.type === "Supplier"));
   const pageAccounts = rows.slice(current * pageSize, current * pageSize + pageSize);
