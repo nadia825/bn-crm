@@ -6,6 +6,7 @@ import {
   type Store,
 } from "../src/lib/data.ts";
 import { ROLES } from "../src/lib/access.ts";
+import { activityDetailsError } from "../src/lib/activities.ts";
 function fail(message: string): never {
   throw new Error(message);
 }
@@ -281,6 +282,8 @@ export function validateStore(value: unknown): asserts value is Store {
       !Number.isFinite(Date.parse(a.due))
     )
       fail("Invalid account activity.");
+    const detailsError = activityDetailsError(a, value as Store);
+    if (detailsError) fail(detailsError);
   }
   for (const v of value.views) {
     fields(v, ["name", "module", "ownerId"]);

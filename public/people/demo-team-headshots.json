@@ -1,0 +1,21 @@
+{
+  "generator": "Built-in image_gen",
+  "subject": "Eight fictional demo team members; these are synthetic portraits, not real employee photographs.",
+  "layout": {
+    "columns": 4,
+    "rows": 2,
+    "width": 1774,
+    "height": 887
+  },
+  "people": [
+    "Olivia Parker",
+    "James Wilson",
+    "Sofia Chen",
+    "Marcus Reed",
+    "Avery Lane",
+    "Taylor Morgan",
+    "Riley Brooks",
+    "Maya Robinson"
+  ],
+  "prompt": "Use case: photorealistic-natural. Asset type: one seamless avatar sprite atlas for a CRM's eight FICTIONAL demo team members. Generate ONE landscape 2:1 image containing an EXACT 4-column by 2-row grid of eight equal SQUARE headshot photographs. Each tile fills its entire allotted square, edge-to-edge, with no gutters, borders, rounded corners, text, labels, watermarks or icons. All eight are distinct adults, no public figures, consistent professional studio photography, natural friendly expressions, quiet pale blue-gray background, soft diffuse lighting, business casual solid-color clothes. Every tile: centered full head including hair, eyes at 40 percent height, head and upper shoulders visible, generous margin around face so it crops well into a small circle. Top row from left: (1) woman in her 30s with wavy chestnut shoulder-length hair, navy blouse; (2) man in his 40s, short brown hair and neat beard, blue shirt; (3) woman in her 30s with straight black shoulder-length hair, cream blouse; (4) man in his 40s, dark skin, very short black hair and neatly trimmed beard, slate shirt. Bottom row from left: (5) androgynous adult in their 30s, medium brown skin, short loose dark curls, green shirt; (6) adult in their 40s, light brown skin, short dark hair, fine dark eyeglasses, gray shirt; (7) androgynous adult in their 30s, fair freckled skin, short auburn hair, navy sweater; (8) woman in her 30s, dark skin and voluminous natural curly black hair, muted plum blouse. Match face scale, camera height and lighting across all tiles. The deliverable is the single 4x2 photographic atlas for direct website use, not a mockup or a collage with margins."
+}

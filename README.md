@@ -79,6 +79,18 @@ The Compose stack has a real local SQLite database and API, but uses fictional b
 
 ## Validation
 
+Run `npm run test:scenarios` for a complete check and a dated HTML/JSON report of
+every automated scenario, its actions, expected results and actual outcomes.
+The command prints the report location under `reports/user-journeys/`. Unreached
+steps remain visible as Not run, and failures retain their evidence and logs.
+
+Automated browser journeys simulate Sales, Account Managers, Operations, Finance
+and Viewers on desktop and phone-sized Chromium. They use the production UI, real
+API and a fresh temporary SQLite database per test. Run `npm run test:e2e` (install
+Chromium once with `npx playwright install chromium`), or `npm run test:all` for all
+checks. See `tests/e2e/README.md` for coverage, isolation, reports and debugging.
+The GitHub Actions workflow runs the checks on pushes and pull requests once pushed.
+
 Data integrity tests cover exact counts, unique IDs, all cross-module references, activation invariants, case resolutions, fictional contact domains, and independent supplier/affiliate workflows. Browser QA covers account creation and reload persistence, account notes, onboarding verification/rejection/activation, work editing, comments, case resolution, pipeline moves, and responsive navigation.
 
 ## Connected workspaces

@@ -23,6 +23,7 @@ import {
   ChevronDown,
   Check,
   ShieldCheck,
+  Eye,
   CreditCard,
   CalendarDays,
   Plus,
@@ -38,6 +39,7 @@ import { Toaster, toast } from "sonner";
 import { StoreProvider, useStore } from "@/lib/store";
 import { type Account, type WorkItem } from "@/lib/data";
 import { Button } from "./ui/button";
+import { ProductionPreview, DemoOnly } from "./production-preview";
 import { BrandLogo } from "./brand-logo";
 import {
   Dialog,
@@ -134,17 +136,21 @@ export function CRM() {
     </StoreProvider>
   );
 }
-function ConnectionStatus({ loading = false }: { loading?: boolean }) {
+function ConnectionStatus({ loading = false, clean = false }: { loading?: boolean; clean?: boolean }) {
   const { connectionError, retry, serverMode, saving } = useStore((s) => ({ connectionError: s.connectionError, retry: s.retry, serverMode: s.serverMode, saving: s.saving }));
   if (loading) return <div className="app-loading"><BrandLogo /><strong>{connectionError || "Opening your workspace…"}</strong>{connectionError && <Button onClick={retry}>Retry connection</Button>}</div>;
+  if (clean && !connectionError && !saving) return null;
   return <div className={`storage-status ${connectionError ? "storage-error" : ""}`} role="status">
-    <span>{serverMode ? "Local database · Fictional demo" : "Browser demo · Fictional data"}</span>
+    <span>{clean ? "Connection status" : serverMode ? "Local database · Fictional demo" : "Browser demo · Fictional data"}</span>
     <span>{connectionError ? <>{connectionError} <button onClick={retry}>Reconnect</button></> : saving ? "Saving…" : serverMode ? "Shared across local sessions" : "Saved in this browser"}</span>
   </div>;
 }
 function Workspace() {
   const { data, setData, ready, actor, demoUsers, switchDemoUser, can, serverMode } = useStore((s) => ({ data: s.data, setData: s.setData, ready: s.ready, actor: s.actor, demoUsers: s.demoUsers, switchDemoUser: s.switchDemoUser, can: s.can, serverMode: s.serverMode }));
   const [profile, setProfile] = useState(false);
+  const [cleanPreview, setCleanPreview] = useState(false);
+  const [switchingIdentity, setSwitchingIdentity] = useState(false);
+  const identityLock = useRef(false);
   const workspaceChoices = allowedWorkspaces(actor);
   const [route, setRoute] = useState<WorkspaceRoute>({
     workspace: "brands",
@@ -309,19 +315,31 @@ function Workspace() {
       accountType: workspaceInfo.accountType || "Corporate Brand",
       lockType: !!workspaceInfo.accountType,
     });
-  const previewRole = async (id: string) => {
+  const changeIdentity = async (id: string) => {
+    if (identityLock.current) return;
     const user = demoUsers.find((u) => u.id === id && u.active);
-    if (!user) return;
-    if (!(await switchDemoUser(id))) return;
-    setAccountId(null);
-    setSelected(null);
-    setEditor(null);
-    setSearch(false);
-    setProfile(false);
-    navigate(
-      user.roles.includes("System Admin") ? "Company Overview" : "Dashboard",
-      defaultWorkspace(user),
-    );
+    if (!user) {
+      toast.error("This demo user is no longer active. Choose another demo role.");
+      return;
+    }
+    identityLock.current = true;
+    setSwitchingIdentity(true);
+    try {
+      if (!(await switchDemoUser(id))) return;
+      setCleanPreview(false);
+      setAccountId(null);
+      setSelected(null);
+      setEditor(null);
+      setSearch(false);
+      setProfile(false);
+      navigate(
+        user.roles.includes("System Admin") ? "Company Overview" : "Dashboard",
+        defaultWorkspace(user),
+      );
+    } finally {
+      identityLock.current = false;
+      setSwitchingIdentity(false);
+    }
   };
   useEffect(() => {
     if (!ready) return;
@@ -364,7 +382,8 @@ function Workspace() {
       <ConnectionStatus loading />
     );
   return (
-    <><ConnectionStatus /><div
+    <ProductionPreview.Provider value={cleanPreview}><ConnectionStatus clean={cleanPreview} /><div
+      data-production-preview={cleanPreview || undefined}
       className={`app-shell ${collapsed ? "sidebar-collapsed" : ""} ${mobileOpen ? "mobile-nav-open" : ""}`}
     >
       <aside
@@ -549,14 +568,15 @@ function Workspace() {
             </strong>
           </div>
           <div className="topbar-actions">
-            <div className="demo-role-switcher">
+            <DemoOnly><div className="demo-role-switcher">
               <ShieldCheck size={17} />
               <label>
                 <span>Demo role</span>
                 <Select
                   aria-label="Demo role switcher"
                   value={actor.id}
-                  onChange={(e) => previewRole(e.target.value)}
+                  disabled={switchingIdentity}
+                  onChange={(e) => changeIdentity(e.target.value)}
                 >
                   {demoUsers
                     .filter((u) => u.active)
@@ -567,7 +587,18 @@ function Workspace() {
                     ))}
                 </Select>
               </label>
-            </div>
+            </div></DemoOnly>
+            <Button
+              variant="outline"
+              size="sm"
+              className="see-as-button"
+              disabled={switchingIdentity}
+              aria-pressed={cleanPreview}
+              title={cleanPreview ? "Return to demo controls" : `Preview the production-style view for ${actor.roles.join(" + ")}`}
+              onClick={() => setCleanPreview((value) => !value)}
+            >
+              <Eye size={15} /> {cleanPreview ? "Exit preview" : "See as"}
+            </Button>
             <span className="demo-indicator">
               <span />
               Demo workspace
@@ -603,9 +634,9 @@ function Workspace() {
           {!pageAllowed ? (
             <Card className="workspace-empty-queue">
               <ShieldCheck size={30} />
-              <h2>View unavailable for these demo roles</h2>
+              <h2>View unavailable for this role</h2>
               <p>
-                Switch the demo role in the header or return to your dashboard.
+                Return to your dashboard to see the records available to your role.
               </p>
               <Button
                 onClick={() => navigate("Dashboard", defaultWorkspace(actor))}
@@ -788,6 +819,11 @@ function Workspace() {
         edit={(r, k) => setEditor({ type: k, record: r })}
         openAccount={openAccount}
         openLinkedCase={(c) => openItem(c, "cases")}
+        createWork={(supportCase) => setEditor({
+          type: "tasks",
+          accountId: supportCase.accountId,
+          caseId: supportCase.id,
+        })}
       />}
       {editor && <EditorDialog
         key={editor ? editor.type + (editor.record?.id || "new") : "closed"}
@@ -919,7 +955,7 @@ function Workspace() {
         <DialogContent>
           <DialogTitle>{actor.name}</DialogTitle>
           <DialogDescription>
-            Fictional demo identity · {actor.email}
+            {!cleanPreview && "Fictional demo identity · "}{actor.email}
           </DialogDescription>
           <div className="role-tags">
             {actor.roles.map((r) => (
@@ -931,10 +967,9 @@ function Workspace() {
               {roleDescriptions[r]}
             </p>
           ))}
-          <div className="info-callout">
-            Change the demo preview in the header. Role capabilities are
-            predefined; only System Admins can assign roles in Users & Roles.
-          </div>
+          <DemoOnly><div className="info-callout">
+            Choose a Demo role, then use See as to preview that role without demo labels and controls.
+          </div></DemoOnly>
         </DialogContent>
       </Dialog>
       <Dialog open={help} onOpenChange={setHelp}>
@@ -974,10 +1009,10 @@ function Workspace() {
               </div>
             ))}
           </div>
-          <div className="info-callout">
+          <DemoOnly><div className="info-callout">
             {serverMode ? "Changes are saved in the shared local database." : "Changes are saved in this browser."} Files are references only. All
             integrations and approvals are simulated.
-          </div>
+          </div></DemoOnly>
           <Button
             onClick={() => {
               setHelp(false);
@@ -989,6 +1024,6 @@ function Workspace() {
           </Button>
         </DialogContent>
       </Dialog>
-    </div></>
+    </div></ProductionPreview.Provider>
   );
 }

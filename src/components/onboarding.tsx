@@ -1,4 +1,5 @@
 "use client";
+import { PreviewText, useProductionPreview } from "./production-preview";
 import { useEffect, useState } from "react";
 import {
   Check,
@@ -27,6 +28,7 @@ export function Onboarding({
   approvalsOnly?: boolean;
   onReview?: (a: Account) => void;
 }) {
+  const preview = useProductionPreview();
   const { data, setData, can, canCheck } = useStore((s) => ({ data: s.data, setData: s.setData, can: s.can, canCheck: s.canCheck }));
   const allBrands = data.accounts.filter((a) => a.type === "Corporate Brand");
   const brands = approvalsOnly
@@ -74,6 +76,8 @@ export function Onboarding({
     );
   const count = a.checks.filter(Boolean).length,
     all = count === 6;
+  const rejectionPrefix = "Operations rejected activation: ";
+  const rejection = a.history.find((entry) => entry.text.startsWith(rejectionPrefix));
   const update = async (patch: Partial<typeof a>, text: string) =>
     await setData((d) => ({
       ...d,
@@ -93,7 +97,7 @@ export function Onboarding({
     );
     setVerifying(false);
     if (!saved) return;
-    toast.success("Simulated verification passed");
+    toast.success(preview ? "Verification passed" : "Simulated verification passed");
   };
   const step =
     a.status === "Active"
@@ -178,11 +182,10 @@ export function Onboarding({
               <AccountLogo name={b.name} color={b.color} size={34} />
               <span>
                 <strong>{b.name}</strong>
-                <small>
-                  {b.status === "Active"
-                    ? "Active"
-                    : `${b.checks.filter(Boolean).length} of 6 steps completed`}
-                </small>
+                <small>{b.checks.filter(Boolean).length} of 6 checks completed</small>
+                <Badge className="brand-queue-status">
+                  {b.status === "Active" ? "Active" : b.approval}
+                </Badge>
                 <span className="progress">
                   <span
                     style={{
@@ -192,7 +195,8 @@ export function Onboarding({
                 </span>
               </span>
               <span className="queue-percent">
-                {Math.round((b.checks.filter(Boolean).length / 6) * 100)}%
+                <span>Setup</span>
+                <span>{Math.round((b.checks.filter(Boolean).length / 6) * 100)}%</span>
               </span>
             </button>
           ))}
@@ -208,8 +212,22 @@ export function Onboarding({
                   {a.manager} · Account manager
                 </span>
               </div>
-              <Badge>{a.status}</Badge>
+              <div className="brand-launch-badges">
+                <Badge>{a.status}</Badge>
+                {a.status !== "Active" && <Badge>{a.approval}</Badge>}
+              </div>
             </div>
+            {a.approval === "Rejected" && (
+              <div className="brand-review-feedback" role="note" aria-label="Operations rejection feedback">
+                <AlertCircle size={19} aria-hidden="true" />
+                <div>
+                  <h3>Rejected by Operations · Changes required</h3>
+                  <p>{rejection?.text.slice(rejectionPrefix.length) || "Review the Operations feedback in Launch activity below."}</p>
+                  {rejection && <small>{rejection.author} · {new Date(rejection.at).toLocaleString("en-US")}</small>}
+                  <p>Completed checks do not mean launch approval. Address the feedback and run verification again before resubmitting.</p>
+                </div>
+              </div>
+            )}
             <div className="activation-stepper">
               {[
                 "Complete setup",
@@ -268,7 +286,7 @@ export function Onboarding({
                           "Company details, brand assets, and legal profile",
                           "Team members, roles, and account permissions",
                           "Product catalog, variants, images, and pricing",
-                          "Simulated billing profile and payment settings",
+                          preview ? "Billing profile and payment settings" : "Simulated billing profile and payment settings",
                           "Storefront integration and checkout experience",
                           "Shipping zones and connected distributors",
                         ][i]
@@ -294,8 +312,8 @@ export function Onboarding({
                 </h3>
                 <p>
                   {a.verification === "Verified"
-                    ? "All six requirements passed the simulated configuration check."
-                    : "Complete all setup steps, then run the simulated checks."}
+                    ? (preview ? "All six requirements passed verification." : "All six requirements passed the simulated configuration check.")
+                    : (preview ? "Complete all setup steps, then run verification." : "Complete all setup steps, then run the simulated checks.")}
                 </p>
               </div>
               <Button
@@ -363,7 +381,7 @@ export function Onboarding({
               ) : (
                 <>
                   <div className="info-callout">
-                    Review the simulated configuration, then approve activation
+                    <PreviewText demo="Review the simulated configuration, then approve activation" clean="Review the configuration, then approve activation" />
                     or return the brand with a reason.
                   </div>
                   <Textarea

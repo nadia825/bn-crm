@@ -140,7 +140,6 @@ export function ViewControls({
             <Trash2 size={13} />
           </Button>
         )}
-        <small>Filters respect your current demo roles</small>
       </div>
       <Dialog open={dialog} onOpenChange={setDialog}>
         <DialogContent>

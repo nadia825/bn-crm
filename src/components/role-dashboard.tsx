@@ -1,6 +1,8 @@
 "use client";
+import { PreviewText, useProductionPreview } from "./production-preview";
 import { DailyActions } from "./daily-actions";
 import { todayDate } from "@/lib/dates";
+import { attentionPreview, compareWorkAttention } from "@/lib/daily-actions";
 import { useState } from "react";
 import {
   ArrowRight,
@@ -12,17 +14,17 @@ import {
   CreditCard,
   CalendarDays,
   Users,
-  Eye,
   GitBranch,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { type Account, type WorkItem, dateLabel } from "@/lib/data";
 import { canPage } from "@/lib/access";
-import { WORKSPACES, type WorkspaceId } from "@/lib/workspaces";
+import { scopedItems, WORKSPACES, type WorkspaceId } from "@/lib/workspaces";
 import { Button } from "./ui/button";
 import { Card, Badge } from "./ui/primitives";
 import {
   Avatar,
+  PersonIdentity,
   AccountLogo,
   EmptyState,
   PanelHeading,
@@ -46,6 +48,7 @@ export function RoleDashboard({
   newAccount: () => void;
   reviewApproval: (a: Account) => void;
 }) {
+  const preview = useProductionPreview();
   const { data, actor, can } = useStore((s) => ({ data: s.data, actor: s.actor, can: s.can }));
   const go = (page: string) =>
     navigate(canPage(actor, page, data) ? page : "All Accounts");
@@ -84,7 +87,7 @@ export function RoleDashboard({
     "Operations Member":
       "Your assigned work, support cases, and onboarding requirements.",
     Finance:
-      "Fictional billing, payment follow-ups, and authorized financial reporting.",
+      preview ? "Billing, payment follow-ups, and financial reporting." : "Fictional billing, payment follow-ups, and authorized financial reporting.",
     Viewer: "Read-only visibility into your designated accounts and reports.",
   };
   const clients = data.accounts.filter((a) => a.type !== "Supplier");
@@ -112,7 +115,7 @@ export function RoleDashboard({
     primary === "Finance"
       ? [
           {
-            label: "Outstanding mock balance",
+            label: preview ? "Outstanding balance" : "Outstanding mock balance",
             value: money(balance),
             page: "Billing",
             icon: CreditCard,
@@ -229,7 +232,7 @@ export function RoleDashboard({
             {
               label:
                 primary === "System Admin"
-                  ? "Demo users"
+                  ? (preview ? "Users" : "Demo users")
                   : primary === "Sales Manager"
                     ? "Follow-ups due"
                     : "Open cases",
@@ -260,10 +263,15 @@ export function RoleDashboard({
   ];
   const [shown, setShown] = useState(widgets);
   const listAccounts = primary === "Account Manager" ? own : clients;
-  const taskList = (primary === "Account Manager" ? myTasks : openTasks)
-    .slice()
-    .sort((a, b) => a.due.localeCompare(b.due))
-    .slice(0, 5);
+  const today = todayDate();
+  const taskList = attentionPreview(scopedItems(data, "tasks", workspace)
+    .filter((item) => !["Done", "Aborted"].includes(item.status) &&
+      (primary !== "Account Manager" || item.assignee === actor.name))
+    .sort((a, b) => compareWorkAttention(a, b, today)), today, 5);
+  const caseList = attentionPreview(scopedItems(data, "cases", workspace)
+    .filter((item) => !["Resolved", "Closed"].includes(item.status))
+    .sort((a, b) => compareWorkAttention(a, b, today)), today, 5);
+  const dueText = (due: string) => due === today ? "Due today" : due < today ? `Overdue · ${dateLabel(due)}` : `Due ${dateLabel(due)}`;
   return (
     <>
       <SectionTitle title={title} subtitle={descriptions[primary]}>
@@ -284,25 +292,6 @@ export function RoleDashboard({
         )}
       </SectionTitle>
       <DailyActions workspace={workspace} openAccount={openAccount} openItem={openItem} reviewApproval={reviewApproval} />
-      <div className="workspace-context-bar">
-        <span>
-          <ShieldCheck size={14} />
-          {actor.name}
-        </span>
-        <span>{roles.join(" + ")}</span>
-        <span className="context-connected">
-          {primary === "Viewer" ? (
-            <>
-              <Eye size={13} />
-              Read only
-            </>
-          ) : roles.length > 1 ? (
-            "Combined role capabilities"
-          ) : (
-            "Predefined role capabilities"
-          )}
-        </span>
-      </div>
       <div className="dashboard-layout-options">
         <span>Dashboard widgets</span>
         {widgets.map((w) => (
@@ -353,7 +342,7 @@ export function RoleDashboard({
               </div>
               <strong>{m.value}</strong>
               <div className="workspace-metric-foot">
-                <span>Current authorized demo scope</span>
+                <span className="demo-only">Current authorized demo scope</span>
                 <ArrowRight size={13} />
               </div>
             </Card>
@@ -409,7 +398,7 @@ export function RoleDashboard({
             <div className="finance-dashboard-total">
               <CreditCard size={22} />
               <span>
-                <small>Outstanding fictional balance</small>
+                <small><PreviewText demo="Outstanding fictional balance" clean="Outstanding balance" /></small>
                 <strong>{money(balance)}</strong>
               </span>
             </div>
@@ -444,7 +433,7 @@ export function RoleDashboard({
                   ? "My next tasks"
                   : "Next business work"
               }
-              subtitle="Due dates and priorities from your authorized records"
+              subtitle="Urgent and today’s work first, followed by high-priority follow-ups"
               action="Open work"
               onAction={() =>
                 navigate(primary === "Sales Manager" ? "Activities" : "Tasks")
@@ -461,9 +450,7 @@ export function RoleDashboard({
                 </span>
                 <span>
                   <strong>{t.title}</strong>
-                  <small>
-                    {t.id} · {dateLabel(t.due)} · {t.assignee}
-                  </small>
+                  <span className="role-work-meta"><small>{t.id} · {dueText(t.due)}</small><PersonIdentity name={t.assignee} size={22} /></span>
                 </span>
                 <Badge>{t.priority}</Badge>
               </button>
@@ -479,7 +466,7 @@ export function RoleDashboard({
               action="Open cases"
               onAction={() => navigate("Support Cases")}
             />
-            {cases.slice(0, 5).map((c) => (
+            {caseList.map((c) => (
               <button
                 className="role-account-row"
                 key={c.id}
@@ -490,9 +477,7 @@ export function RoleDashboard({
                 </span>
                 <span>
                   <strong>{c.title}</strong>
-                  <small>
-                    {c.id} · {c.assignee}
-                  </small>
+                  <span className="role-work-meta"><small>{c.id} · {dueText(c.due)}</small><PersonIdentity name={c.assignee} size={22} /></span>
                 </span>
                 <Badge>{c.priority}</Badge>
               </button>
@@ -506,7 +491,7 @@ export function RoleDashboard({
           <Card>
             <PanelHeading
               title="Activation approvals"
-              subtitle="Six checks and simulated verification are required first"
+              subtitle={preview ? "Complete all six checks before activation" : "Six checks and simulated verification are required first"}
               action="Review queue"
               onAction={() => navigate("Pending Approvals")}
             />
@@ -541,7 +526,7 @@ export function RoleDashboard({
             {[
               [
                 "Users & Roles",
-                "Manage demo users and predefined role assignments",
+                preview ? "Manage users and role assignments" : "Manage demo users and predefined role assignments",
               ],
               [
                 "Configuration",

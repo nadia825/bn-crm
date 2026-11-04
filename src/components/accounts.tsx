@@ -1,4 +1,5 @@
 "use client";
+import { useProductionPreview } from "./production-preview";
 import { SupplierProvisionalNotice } from "./supplier-provisional";
 import { useState } from "react";
 import {
@@ -48,6 +49,7 @@ export function AccountProfile({
   initialTab?: AccountSection;
   createWork: () => void;
 }) {
+  const preview = useProductionPreview();
   const { data, setData, can, actor } = useStore((s) => ({ data: s.data, setData: s.setData, can: s.can, actor: s.actor }));
   const [tab, setTab] = useState<AccountSection>(initialTab);
   const [note, setNote] = useState("");
@@ -60,7 +62,6 @@ export function AccountProfile({
     "Contacts",
     "Relationships",
     ...(can("billing.read") ? ["Commercial" as const] : []),
-    "Notes & files",
   ];
   const tasks = data.tasks.filter((t) => t.accountId === id),
     cases = data.cases.filter((c) => c.accountId === id);
@@ -116,7 +117,7 @@ export function AccountProfile({
           </Button>
         </div>
         <nav className="profile-tabs" aria-label="Account sections">
-          {(["Overview", "Onboarding", "Activity"] as const).map((t) => (
+          {(["Overview", "Notes & files", "Onboarding", "Activity"] as const).map((t) => (
             <button
               key={t}
               className={tab === t ? "active" : ""}
@@ -219,7 +220,7 @@ export function AccountProfile({
                   <Info label="Account type" value={a.type} />
                   <Info
                     label="BNX identifier"
-                    value={`${a.bnxId || "Not linked"}${a.bnxVerified ? " · Verified mock" : ""}`}
+                    value={`${a.bnxId || "Not linked"}${a.bnxVerified ? (preview ? " · Verified" : " · Verified mock") : ""}`}
                   />
                   {data.configuration.customFields
                     .filter(
@@ -284,7 +285,7 @@ export function AccountProfile({
                   <Mail size={17} />
                 </Card>
               ))}
-              <p className="subtle">
+              <p className="subtle demo-only">
                 Contact details are fictional and use reserved .example domains.
               </p>
             </>
@@ -364,7 +365,7 @@ export function AccountProfile({
                 <Info label="Sales channel" value="Direct to consumer" />
                 <Info label="Currency" value="USD" />
               </div>
-              <div className="info-callout">
+              <div className="info-callout demo-only">
                 Commercial information is illustrative. Billing and payment
                 processing are simulated.
               </div>
@@ -522,14 +523,14 @@ export function AccountProfile({
                 </div>
               ))}
               <h3 className="spaced">Attachments</h3>
-              <p className="subtle">
+              <p className="subtle demo-only">
                 Demo stores filenames only; file contents are not uploaded.
               </p>
               {a.attachments.map((f, i) => (
                 <div className="attachment" key={f + i}>
                   <Paperclip size={16} />
                   {f}
-                  <span className="subtle">Demo reference</span>
+                  <span className="subtle demo-only">Demo reference</span>
                 </div>
               ))}
               <label className="upload-zone">

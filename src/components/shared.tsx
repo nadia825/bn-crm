@@ -1,4 +1,7 @@
 "use client";
+import { useState } from "react";
+import { personPortrait, teamPortraitAtlas } from "@/lib/people";
+import "./people.css";
 import { useStore } from "@/lib/store";
 import {
   ArrowUpRight,
@@ -17,23 +20,38 @@ export function Avatar({
   name,
   size = 28,
   color,
+  decorative = false,
 }: {
   name: string;
   size?: number;
   color?: string;
+  decorative?: boolean;
 }) {
+  const portrait = personPortrait(name);
+  const [failed, setFailed] = useState(false);
+  const initials = name.trim().split(/\s+/).filter(Boolean).map((part) => part[0]).slice(0, 2).join("") || "?";
   return (
     <span
-      className={`avatar ${color || ["purple", "blue", "amber", "green"][name.length % 4]}`}
+      className={`avatar ${portrait && !failed ? "avatar-with-photo" : ""} ${color || ["purple", "blue", "amber", "green"][name.length % 4]}`}
       style={{ width: size, height: size, fontSize: size / 2.7 }}
+      title={name}
+      role={decorative ? undefined : "img"}
+      aria-label={decorative ? undefined : name}
+      aria-hidden={decorative || undefined}
     >
-      {name
-        .split(" ")
-        .map((n) => n[0])
-        .slice(0, 2)
-        .join("")}
+      {portrait && !failed ? <svg className="avatar-photo" aria-hidden="true" focusable="false"
+        viewBox={`${portrait.x} ${portrait.y} ${portrait.width} ${portrait.height}`} preserveAspectRatio="xMidYMid slice">
+        <image href={teamPortraitAtlas.src} width={teamPortraitAtlas.width} height={teamPortraitAtlas.height} onError={() => setFailed(true)} />
+      </svg> : initials}
     </span>
   );
+}
+export function PersonIdentity({ name, size = 24, label }: { name: string; size?: number; label?: string }) {
+  return <span className="person-identity" title={name}>
+    {label && <span className="person-label">{label}</span>}
+    <Avatar name={name} size={size} decorative />
+    <span className="person-name">{name}</span>
+  </span>;
 }
 export function AccountLogo({
   name,
@@ -132,6 +150,11 @@ export function Toolbar({
   filterOptions,
   manager,
   setManager,
+  managerLabel = "Account manager",
+  managerAllLabel = "All managers",
+  managerOptions,
+  showManagerIcon = true,
+  filterLabel = "Filter by status or type",
   view,
   setView,
   children,
@@ -143,6 +166,11 @@ export function Toolbar({
   filterOptions?: string[];
   manager?: string;
   setManager?: (s: string) => void;
+  managerLabel?: string;
+  managerAllLabel?: string;
+  managerOptions?: string[];
+  showManagerIcon?: boolean;
+  filterLabel?: string;
   view?: string;
   setView?: (s: string) => void;
   children?: React.ReactNode;
@@ -153,7 +181,7 @@ export function Toolbar({
       <SearchField value={query} onChange={setQuery} />
       {setFilter && (
         <Select
-          label="Filter by status or type"
+          label={filterLabel}
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
           options={filterOptions || []}
@@ -161,17 +189,16 @@ export function Toolbar({
       )}
       {setManager && (
         <div className="manager-filter">
-          <SlidersHorizontal size={14} />
+          {showManagerIcon && <SlidersHorizontal size={14} aria-hidden="true" />}
           <Select
-            label="Account manager"
+            label={managerLabel}
             value={manager}
             onChange={(e) => setManager(e.target.value)}
             options={[
-              "All managers",
+              managerAllLabel,
               ...Array.from(
                 new Set([
-                  ...managers,
-                  ...data.users.filter((u) => u.active).map((u) => u.name),
+                  ...(managerOptions || [...managers, ...data.users.filter((u) => u.active).map((u) => u.name)]),
                 ]),
               ),
             ]}

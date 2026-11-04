@@ -1,0 +1,22 @@
+.avatar.avatar-with-photo {
+  position: relative;
+  overflow: hidden;
+  padding: 0;
+  border-color: #d5dce8;
+  background: #e8edf4;
+  vertical-align: middle;
+}
+.avatar-photo { display: block; width: 100%; height: 100%; }
+.person-identity { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 7px; vertical-align: middle; max-width: 100%; }
+.person-identity .person-name { font-size: 12px; font-weight: 650; line-height: 1.45; color: #293b57; overflow-wrap: anywhere; }
+.person-identity .person-label { font-size: 11px; font-weight: 400; color: #6e7b90; }
+.daily-action-copy .daily-action-meta { display: flex; align-items: center; flex-wrap: wrap; column-gap: 8px; row-gap: 5px; margin: 7px 0 6px; line-height: 1.55; }
+.daily-action-meta .person-identity .person-name { font-size: 12px; }
+.role-work-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; margin-top: 5px; }
+.role-work-meta > small { margin: 0; }
+.role-work-meta .person-identity { display: inline-flex; }
+.account-owner > span:not(.avatar), .identity:has(> .avatar) { color: #293b57; font-weight: 550; }
+@media (max-width: 640px) {
+  .daily-action-copy .daily-action-meta { align-items: flex-start; }
+  .daily-action-meta .person-identity { gap: 6px; }
+}

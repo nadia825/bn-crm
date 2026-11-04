@@ -295,7 +295,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     });
   };
   const switchDemoUser = async (id: string) => {
-    if (processing.current || busy.current) {
+    if (processing.current || busy.current || switching.current) {
       toast.error("Wait for pending saves before switching identity.");
       return false;
     }
@@ -394,7 +394,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   useLayoutEffect(() => { handlersRef.current = handlers; });
   const stableHandlers = useMemo(() => ({
     setData: ((...args) => handlersRef.current.setData(...args)) as Context["setData"],
-    switchDemoUser: (id: string) => handlersRef.current.switchDemoUser(id),
+    switchDemoUser: ((...args) => handlersRef.current.switchDemoUser(...args)) as Context["switchDemoUser"],
     resetDemo: () => handlersRef.current.resetDemo(),
     importLegacy: () => handlersRef.current.importLegacy(),
     retry: () => handlersRef.current.retry(),

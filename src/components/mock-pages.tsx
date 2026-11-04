@@ -1,5 +1,8 @@
 "use client";
+import { PreviewText, useProductionPreview } from "./production-preview";
 import { todayDate } from "@/lib/dates";
+import { ActivityForm } from "./activity-form";
+import { activityDurationMinutes, activityWhen } from "@/lib/activities";
 import { SupplierProvisionalNotice } from "./supplier-provisional";
 import { useState } from "react";
 import {
@@ -68,7 +71,7 @@ export function UsersRoles() {
       >
         <Button onClick={() => setEdit("new")}>
           <Plus size={15} />
-          Add demo user
+          <PreviewText demo="Add demo user" clean="Add user" />
         </Button>
       </SectionTitle>
       <div className="role-demo-note">
@@ -98,7 +101,7 @@ export function UsersRoles() {
               placeholder="Search users…"
             />
             <span>
-              {data.users.length} demo users · Multiple roles supported
+              {data.users.length} <PreviewText demo="demo users · Multiple roles supported" clean="users" />
             </span>
           </div>
           <div className="table-scroll">
@@ -187,6 +190,7 @@ export function UsersRoles() {
   );
 }
 function UserForm({ user, close }: { user?: DemoUser; close: () => void }) {
+  const preview = useProductionPreview();
   const { data: formSnapshot, saving } = useStore((s) => ({ data: s.data, saving: s.saving }));
   const [baseline]=useState(formSnapshot);
 
@@ -234,7 +238,7 @@ function UserForm({ user, close }: { user?: DemoUser; close: () => void }) {
       }}
     >
       <DialogTitle>
-        {user ? "Assign predefined roles" : "Add demo user"}
+        {user ? "Assign predefined roles" : (preview ? "Add user" : "Add demo user")}
       </DialogTitle>
       <DialogDescription>
         Every user needs a role. Multiple roles combine capabilities; assignment
@@ -246,7 +250,7 @@ function UserForm({ user, close }: { user?: DemoUser; close: () => void }) {
           <Input required name="name" defaultValue={user?.name} />
         </label>
         <label className="field-label">
-          Fictional email
+          <PreviewText demo="Fictional email" clean="Email" />
           <Input
             type="email"
             required
@@ -282,7 +286,7 @@ function UserForm({ user, close }: { user?: DemoUser; close: () => void }) {
             name="active"
             defaultChecked={user?.active ?? true}
           />
-          Active in demo previews
+          <PreviewText demo="Active in demo previews" clean="Active" />
         </label>
       </div>
       <div className="dialog-footer">
@@ -617,6 +621,7 @@ function FieldForm({ close }: { close: () => void }) {
 }
 
 export function AuditLog() {
+  const preview = useProductionPreview();
   const { data } = useStore((s) => ({ data: s.data }));
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("All outcomes");
@@ -631,7 +636,7 @@ export function AuditLog() {
     <>
       <SectionTitle
         title="Audit log"
-        subtitle="Application-level mock action history, including denied changes."
+        subtitle={preview ? "Action history, including denied changes." : "Application-level mock action history, including denied changes."}
       />
       <Card>
         <div className="module-toolbar">
@@ -681,12 +686,12 @@ export function AuditLog() {
           {!rows.length && (
             <EmptyState
               title="No matching audit events"
-              description="Create or edit a record to see a mock audit entry."
+              description={preview ? "Create or edit a record to see its activity." : "Create or edit a record to see a mock audit entry."}
             />
           )}
         </div>
       </Card>
-      <p className="subtle spaced">
+      <p className="subtle spaced demo-only">
         This is a demonstration of an audit trail, not a
         tamper-proof production log.
       </p>
@@ -701,6 +706,7 @@ export function Finance({
   mode?: "Billing" | "Payment Follow-ups" | "Finance Reports";
   openAccount: (a: Account) => void;
 }) {
+  const preview = useProductionPreview();
   const { data, setData, can } = useStore((s) => ({ data: s.data, setData: s.setData, can: s.can }));
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("All statuses");
@@ -721,12 +727,12 @@ export function Finance({
     <>
       <SectionTitle
         title={mode}
-        subtitle="Fictional billing records and payment follow-ups for authorized roles."
+        subtitle={preview ? "Billing records and payment follow-ups." : "Fictional billing records and payment follow-ups for authorized roles."}
       >
         {can("billing.edit") && (
           <Button onClick={() => setEdit("new")}>
             <Plus size={15} />
-            New mock invoice
+            <PreviewText demo="New mock invoice" clean="New invoice" />
           </Button>
         )}
       </SectionTitle>
@@ -749,7 +755,7 @@ export function Finance({
             ),
           ],
           [
-            "Paid in demo",
+            preview ? "Paid" : "Paid in demo",
             money(
               data.billing
                 .filter((b) => b.status === "Paid")
@@ -761,7 +767,7 @@ export function Finance({
           <Card key={label}>
             <span>{label}</span>
             <strong>{value}</strong>
-            <small>Mock billing data</small>
+            <small className="demo-only">Mock billing data</small>
           </Card>
         ))}
       </div>
@@ -769,7 +775,7 @@ export function Finance({
         <Card className="settings-card">
           <PanelHeading
             title="Billing distribution"
-            subtitle="Current fictional invoice totals by status"
+            subtitle={preview ? "Invoice totals by status" : "Current fictional invoice totals by status"}
           />
           {["Draft", "Open", "Overdue", "Paid"].map((s) => (
             <div className="report-progress-row" key={s}>
@@ -871,7 +877,7 @@ export function Finance({
                           }}
                         >
                           <Check size={12} />
-                          Record mock payment
+                          <PreviewText demo="Record mock payment" clean="Record payment" />
                         </Button>
                       )}
                     </div>
@@ -936,7 +942,7 @@ function InvoiceForm({
       }}
     >
       <DialogTitle>
-        {invoice ? "Edit mock invoice" : "Create mock invoice"}
+        {invoice ? <PreviewText demo="Edit mock invoice" clean="Edit invoice" /> : <PreviewText demo="Create mock invoice" clean="Create invoice" />}
       </DialogTitle>
       <DialogDescription>
         No real payment processing or billing API is connected.
@@ -996,7 +1002,7 @@ function InvoiceForm({
           />
         </label>
         <label className="field-label">
-          Demo reference
+          <PreviewText demo="Demo reference" clean="Reference" />
           <Input name="reference" defaultValue={invoice?.reference} />
         </label>
       </div>
@@ -1004,140 +1010,7 @@ function InvoiceForm({
         <Button type="button" variant="outline" onClick={close}>
           Cancel
         </Button>
-        <Button disabled={saving} type="submit">Save mock invoice</Button>
-      </div>
-    </form>
-  );
-}
-
-function ActivityForm({
-  activity,
-  kind,
-  close,
-}: {
-  activity?: Activity;
-  kind: Activity["kind"];
-  close: () => void;
-}) {
-  const { data: formSnapshot, saving } = useStore((s) => ({ data: s.data, saving: s.saving }));
-  const [baseline]=useState(formSnapshot);
-
-  const { data, setData, actor, can } = useStore((s) => ({ data: s.data, setData: s.setData, actor: s.actor, can: s.can }));
-  const writable = can("activities.edit", activity);
-  return (
-    <form
-      onSubmit={async (e) => {
-        e.preventDefault();
-        const f = new FormData(e.currentTarget);
-        const a: Activity = {
-          id: activity?.id || crypto.randomUUID(),
-          title: String(f.get("title")).trim(),
-          accountId: String(f.get("accountId")),
-          owner: actor.roles.some((r) =>
-            ["System Admin", "Sales Manager", "Operations Manager"].includes(r),
-          )
-            ? String(f.get("owner"))
-            : actor.name,
-          kind: String(f.get("kind")) as Activity["kind"],
-          due: String(f.get("due")),
-          status: String(f.get("status")) as Activity["status"],
-          notes: String(f.get("notes")),
-        };
-        if (
-          await setData((d) => ({
-            ...d,
-            activities: activity
-              ? d.activities.map((x) => (x.id === a.id ? a : x))
-              : [a, ...d.activities],
-          }), baseline)
-        ) {
-          toast.success("Activity saved");
-          close();
-        }
-      }}
-    >
-      <DialogTitle>
-        {activity ? "Account activity" : "Schedule an activity"}
-      </DialogTitle>
-      <DialogDescription>
-        Meetings and reminders are mock records; no invitations or notifications
-        are sent.
-      </DialogDescription>
-      <fieldset disabled={!writable} className="form-grid">
-        <label className="field-label full">
-          Title
-          <Input name="title" required defaultValue={activity?.title} />
-        </label>
-        <label className="field-label">
-          Account
-          <Select
-            name="accountId"
-            className="input"
-            required
-            defaultValue={activity?.accountId}
-          >
-            {data.accounts
-              .filter((a) => a.type !== "Supplier")
-              .map((a) => (
-                <option value={a.id} key={a.id}>
-                  {a.name}
-                </option>
-              ))}
-          </Select>
-        </label>
-        <label className="field-label">
-          Type
-          <Select
-            name="kind"
-            options={["Meeting", "Call", "Note", "Follow-up"]}
-            defaultValue={activity?.kind || kind}
-          />
-        </label>
-        <label className="field-label">
-          When
-          <Input
-            type="datetime-local"
-            name="due"
-            required
-            defaultValue={activity?.due || `${todayDate()}T14:00`}
-          />
-        </label>
-        <label className="field-label">
-          Owner
-          <Select
-            name="owner"
-            defaultValue={activity?.owner || actor.name}
-            options={
-              actor.roles.some((r) =>
-                [
-                  "System Admin",
-                  "Sales Manager",
-                  "Operations Manager",
-                ].includes(r),
-              )
-                ? data.users.filter((u) => u.active).map((u) => u.name)
-                : [actor.name]
-            }
-          />
-        </label>
-        <label className="field-label">
-          Status
-          <Select
-            name="status"
-            options={["Scheduled", "Done"]}
-            defaultValue={activity?.status || "Scheduled"}
-          />
-        </label>
-        <label className="field-label full">
-          Notes
-          <Textarea name="notes" defaultValue={activity?.notes} />
-        </label>
-      </fieldset>
-      <div className="dialog-footer">
-        <Button variant="outline" type="button" onClick={close}>
-          Close
-        </Button>
-        {writable && <Button disabled={saving} type="submit">Save activity</Button>}
+        <Button disabled={saving} type="submit"><PreviewText demo="Save mock invoice" clean="Save invoice" /></Button>
       </div>
     </form>
   );
@@ -1432,6 +1305,7 @@ export function Activities({
   followups?: boolean;
   openAccount: (a: Account) => void;
 }) {
+  const preview = useProductionPreview();
   const { data, setData, actor, can } = useStore((s) => ({ data: s.data, setData: s.setData, actor: s.actor, can: s.can }));
   const [query, setQuery] = useState("");
   const [view, setView] = useState("List");
@@ -1440,7 +1314,7 @@ export function Activities({
   const rows = data.activities.filter(
     (a) =>
       (!followups || a.kind === "Follow-up") &&
-      `${a.title} ${a.owner} ${data.accounts.find((x) => x.id === a.accountId)?.name}`
+      `${a.title} ${a.owner} ${a.location || ""} ${(a.participantIds || []).map((id) => data.users.find((u) => u.id === id)?.name).join(" ")} ${data.accounts.find((x) => x.id === a.accountId)?.name}`
         .toLowerCase()
         .includes(query.toLowerCase()),
   );
@@ -1487,7 +1361,7 @@ export function Activities({
         <Card className="settings-card">
           <PanelHeading
             title="Account follow-up dates"
-            subtitle="Only accounts available to your demo roles"
+            subtitle={preview ? "Accounts available to your role" : "Only accounts available to your demo roles"}
           />
           {data.accounts
             .filter((a) => a.type !== "Supplier")
@@ -1611,14 +1485,11 @@ export function Activities({
                         {data.accounts.find((x) => x.id === a.accountId)?.name}
                       </button>
                     </td>
-                    <td>{a.owner}</td>
+                    <td>{a.owner}{!!a.participantIds?.length && <small className="table-sub">With {a.participantIds.map((id) => data.users.find((u) => u.id === id)?.name || "Team member").join(", ")}</small>}</td>
                     <td>
-                      {new Date(a.due).toLocaleString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        hour: "numeric",
-                        minute: "2-digit",
-                      })}
+                      {activityWhen(a)}
+                      {a.timeZone && <small className="table-sub">{a.timeZone}</small>}
+                      {activityDurationMinutes(a) && <small className="table-sub">{activityDurationMinutes(a)} minutes</small>}
                     </td>
                     <td>
                       <Badge>{a.status}</Badge>
@@ -1665,7 +1536,7 @@ export function Activities({
       )}
       <Dialog open={!!edit} onOpenChange={(v) => !v && setEdit(null)}>
         {edit && (
-          <DialogContent>
+          <DialogContent className="editor-dialog">
             <ActivityForm
               key={typeof edit === "string" ? "new" : edit.id}
               activity={edit === "new" ? undefined : edit}

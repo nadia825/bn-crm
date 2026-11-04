@@ -65,6 +65,7 @@ type RecordLike = {
   supplierId?: string;
   checkOwners?: string[];
   owner?: string;
+  participantIds?: string[];
   category?: string;
 };
 const memberAccount = (u: DemoUser, a: RecordLike, d: Store) =>
@@ -104,7 +105,8 @@ export function can(
             ))
         );
       if (role === "Operations Manager") return true;
-      if (role === "Operations Member") return !!memberAccount(u, record, d);
+      if (role === "Operations Member") return !!memberAccount(u, record, d) ||
+        d.activities.some((a) => a.accountId === record.id && (a.owner === u.name || a.participantIds?.includes(u.id)));
       if (role === "Finance") return !!financeAccount(record, d);
       return !!u.accountIds?.includes(record.id || "");
     }
@@ -210,7 +212,8 @@ export function can(
         return true;
       if (role === "Account Manager")
         return !record || linked?.manager === u.name;
-      return !record || record.owner === u.name;
+      return !record || record.owner === u.name ||
+        (action === "activities.read" && !!record.participantIds?.includes(u.id));
     }
     if (action.startsWith("billing.")) return role === "Finance";
     return false;

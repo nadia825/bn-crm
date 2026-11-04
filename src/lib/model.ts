@@ -51,6 +51,18 @@ export type Activity = {
   due: string;
   status: "Scheduled" | "Done";
   notes: string;
+  participantIds?: string[];
+  endAt?: string;
+  timeZone?: string;
+  location?: string;
+  meetingUrl?: string;
+  caseId?: string;
+  taskId?: string;
+  priority?: "Low" | "Medium" | "High" | "Urgent";
+  reminder?: "None" | "At start" | "15 minutes before" | "1 hour before" | "1 day before";
+  agenda?: string;
+  outcome?: string;
+  nextAction?: string;
 };
 export type RetailerRecord = {
   id: string;

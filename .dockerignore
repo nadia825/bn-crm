@@ -16,3 +16,7 @@ documents
 *.sqlite*
 backups
 outputs
+playwright-report
+test-results
+.e2e-runs
+reports

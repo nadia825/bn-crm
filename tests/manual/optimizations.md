@@ -9,3 +9,7 @@ Use fictional records. Automated API tests use temporary databases and cover act
 5. With disposable test records in two sessions, open a form in A and edit a different record in B. A should save. Repeat with the same record: A should be blocked from overwriting B. Reset/import must still reject a stale global revision.
 6. Reload after a save and check the shared records remain. Stop/restart the local stack without deleting its volume and verify persistence. Automated tests assert unchanged payload rows are not rewritten and foreign keys stay valid.
 7. Load the company dashboard and then open Reports/Finance to verify lazy-loaded screens display. Trigger a save and confirm connection status changes without resetting form inputs or the active view.
+
+## Current-role production-style preview
+
+Choose a user with **Demo role**, then select **See as**. It must keep the same identity, role permissions, current route, selected records and saved view. It opens no identity picker. Demo labels, prototype notes, and Settings' Prototype & data reset/import tools disappear. Real connection errors and pending saves remain visible. **Exit preview** restores demo controls on the same page; a refresh also exits preview. Repeat for Operations Manager, Viewer, Finance and System Admin, including a profile dialog and Settings. Viewer must remain read-only. This is presentation-only: sample records and simulated integrations are unchanged, and any edits still save normally.

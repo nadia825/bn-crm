@@ -477,3 +477,53 @@ test("bulk saves are atomic when any case lacks a resolution", async (t) => {
   assert.equal(saved.status, 200, saved.error);
   assert.ok(selected.every((c) => saved.data.cases.find((r) => r.id === c.id).status === "Resolved"));
 });
+
+test("combined work filters persist as personal views without widening another role's scope", async (t) => {
+  const { req, change, path } = await fixture(t);
+  const snapshot = {query:"launch",status:"In Progress",assignee:"Avery Lane",priority:"High",category:"Brand Operations",accountId:"BR-003",due:"custom",dueFrom:"2026-11-01",dueTo:"2026-11-08",linkedCase:"CASE-201",mine:false,view:"list",sort:"due",asc:true,columns:["ID","Summary","Status"]};
+  const saved=await change("marcus",d=>{d.views.push({id:"VIEW-COMBINED",name:"Launch follow-ups",module:"work-operations-tasks",ownerId:"marcus",visibility:"Personal",snapshot});});
+  assert.equal(saved.status,200,saved.error);
+  const reopened=new CrmDatabase(path);
+  assert.deepEqual(reopened.read().views.find(v=>v.id==="VIEW-COMBINED").snapshot,snapshot);
+  reopened.close();
+  assert.deepEqual((await req("state","marcus")).data.views.find(v=>v.id==="VIEW-COMBINED").snapshot,snapshot);
+  assert.equal((await req("state","avery")).data.views.some(v=>v.id==="VIEW-COMBINED"),false);
+});
+
+test("rich mock activities persist in SQLite and enforce assignments and related accounts", async (t) => {
+  const { req, change, path } = await fixture(t);
+  const initial = await req("state", "marcus");
+  const supportCase = initial.data.cases[0];
+  const work = initial.data.tasks.find((x) => x.accountId === supportCase.accountId);
+  const activity = {
+    id: "QA-RICH-ACTIVITY", title: "QA — Mock launch coordination", accountId: supportCase.accountId,
+    owner: "Marcus Reed", participantIds: ["avery", "sofia"], kind: "Meeting", status: "Scheduled",
+    due: "2026-11-04T14:00", endAt: "2026-11-04T14:45", timeZone: "Africa/Tunis", notes: "Mock only",
+    location: "Online", meetingUrl: "https://meeting.example/launch", priority: "High", reminder: "15 minutes before",
+    caseId: supportCase.id, agenda: "Review label", outcome: "Pending artwork", nextAction: "Request correction",
+  };
+  const saved = await change("marcus", (d) => d.activities.push(activity));
+  assert.equal(saved.status, 200);
+  const reopened = new CrmDatabase(path);
+  assert.deepEqual(reopened.read().activities.find((a) => a.id === activity.id), activity);
+  reopened.close();
+  const participant = await req("state", "avery");
+  assert.ok(participant.data.activities.some((a) => a.id === activity.id));
+  const denied = await change("avery", (d) => { d.activities.find((a) => a.id === activity.id).outcome = "Unauthorized"; });
+  assert.equal(denied.status, 403);
+  for (const patch of [
+    { endAt: "2026-11-04T13:00" }, { participantIds: ["avery", "avery"] },
+    { participantIds: ["marcus"] }, { participantIds: ["unknown"] }, { meetingUrl: "javascript:alert(1)" },
+    { timeZone: "Invalid/Zone" }, { taskId: initial.data.tasks.find((x) => x.accountId !== supportCase.accountId).id },
+  ]) {
+    const invalid = await change("marcus", (d) => Object.assign(d.activities.find((a) => a.id === activity.id), patch));
+    assert.equal(invalid.status, 422, JSON.stringify(patch));
+  }
+  if (work) {
+    assert.equal((await change("marcus", (d) => { d.tasks.find((x) => x.id === work.id).caseId = supportCase.id; })).status, 200);
+    const linked = await change("marcus", (d) => { d.activities.find((a) => a.id === activity.id).taskId = work.id; });
+    assert.equal(linked.status, 200);
+  }
+  const after = await req("state", "marcus");
+  assert.equal(after.data.activities.find((a) => a.id === activity.id).outcome, "Pending artwork");
+});

@@ -480,6 +480,8 @@ function WorkForm({
       <DialogDescription>
         {isCase
           ? "Give your team the context to resolve this request."
+          : !r && editor.caseId && editor.accountId === accountId
+            ? "The account and support case are already selected. Add the work details and choose an owner."
           : "One clear request. The right owner. A shared next step."}
       </DialogDescription>
       </div>
@@ -564,8 +566,8 @@ function WorkForm({
           />
         </label>
       </div>
-      <details className="work-editor-options" open={r ? true : undefined}>
-        <summary>More options · category, status & files</summary>
+      <details className="work-editor-options" open={r || (!isCase && editor.caseId) ? true : undefined}>
+        <summary>{isCase ? "More options · category, status & files" : "More options · linked case, category, status & files"}</summary>
         <div className="form-grid">
         {!isCase && (
           <label className="field-label full">

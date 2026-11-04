@@ -11,3 +11,7 @@ out/
 *.sqlite-wal
 *.sqlite-shm
 backups/
+playwright-report/
+test-results/
+.e2e-runs/
+reports/user-journeys/

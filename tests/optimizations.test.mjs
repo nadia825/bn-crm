@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { seed } from "../src/lib/data.ts";
-import { dailyActions } from "../src/lib/daily-actions.ts";
+import { dailyActions, attentionPreview, filterDailyActions, defaultActionFilters, compareWorkAttention } from "../src/lib/daily-actions.ts";
 import { todayDate } from "../src/lib/dates.ts";
 import { bulkWorkUpdate } from "../src/lib/work-actions.ts";
 import { diffStore, assertPatchBaseline, shareSnapshot } from "../src/lib/patch.ts";
@@ -65,4 +65,76 @@ test("bulk work respects delegation, resolutions and unchanged records", () => {
   const resolved = bulkWorkUpdate(data, admin, "cases", [openCase.id], { status: "Resolved", resolution: "Customer confirmed the fix" });
   assert.equal(applyMutation(data, resolved, admin).error, undefined);
   assert.equal(data.cases.find((r) => r.id === openCase.id).resolution, "");
+});
+
+
+function attentionFixture() {
+  const data = seed(), actor = data.users.find((u) => u.id === "marcus");
+  const account = data.accounts.find((a) => a.type === "Corporate Brand");
+  const template = data.tasks.find((t) => t.accountId === account.id);
+  data.accounts.forEach((a) => { a.followUp = "2030-07-01"; });
+  data.tasks = [
+    ...Array.from({ length: 8 }, (_, index) => ({ ...structuredClone(template), id: `OLD-${index}`, accountId: account.id, due: "2030-05-01", priority: "Low", status: "New", assignee: actor.name })),
+    { ...structuredClone(template), id: "TODAY", accountId: account.id, due: "2030-06-10", priority: "Medium", status: "On Hold / Under Review", assignee: actor.name },
+    { ...structuredClone(template), id: "URGENT", accountId: account.id, due: "2030-06-11", priority: "Urgent", status: "New", assignee: "Avery Lane" },
+    { ...structuredClone(template), id: "HIGH", accountId: account.id, due: "2030-06-09", priority: "High", status: "New", assignee: actor.name },
+  ];
+  data.cases = [{ ...structuredClone(data.cases[0]), id: "TODAY-CASE", accountId: account.id, due: "2030-06-10", priority: "High", status: "Waiting for Customer", assignee: actor.name }];
+  return { data, actor, today: "2030-06-10" };
+}
+
+test("urgent and today's work outrank low overdue backlogs and ownership does not hide urgent team work", () => {
+  const { data, actor, today } = attentionFixture();
+  const actions = dailyActions(visibleStore(data, actor), actor, "brands", today);
+  const ids = actions.map((a) => a.id);
+  assert.ok(ids.indexOf("tasks:URGENT") < ids.indexOf("tasks:OLD-0"));
+  assert.ok(ids.indexOf("tasks:TODAY") < ids.indexOf("tasks:OLD-0"));
+  assert.ok(ids.indexOf("tasks:HIGH") < ids.indexOf("tasks:OLD-0"));
+  const preview = attentionPreview(actions, today);
+  assert.ok(preview.some((a) => a.id === "tasks:URGENT"));
+  assert.ok(preview.some((a) => a.due === today));
+  const nextTasks = attentionPreview([...data.tasks].sort((a, b) => compareWorkAttention(a, b, today)), today, 5);
+  assert.equal(nextTasks[0].id, "URGENT");
+  assert.ok(nextTasks.some((item) => item.id === "TODAY"));
+});
+
+test("due-today, blocker, priority, type, owner and my-work filters combine without losing overlapping items", () => {
+  const { data, actor, today } = attentionFixture();
+  const actions = dailyActions(visibleStore(data, actor), actor, "brands", today);
+  const todayItems = filterDailyActions(actions, { ...defaultActionFilters, group: "Due today" }, today);
+  assert.deepEqual(todayItems.map((a) => a.id), ["cases:TODAY-CASE", "tasks:TODAY"]);
+  assert.ok(todayItems.every((a) => a.blocked));
+  const mineTodayCases = filterDailyActions(actions, { ...defaultActionFilters, group: "Due today", mineOnly: true, kind: "cases", priority: "High", owner: actor.name }, today);
+  assert.deepEqual(mineTodayCases.map((a) => a.id), ["cases:TODAY-CASE"]);
+  const blocked = filterDailyActions(actions, { ...defaultActionFilters, group: "Blocked" }, today);
+  assert.ok(blocked.some((a) => a.id === "cases:TODAY-CASE"));
+  const high = filterDailyActions(actions, { ...defaultActionFilters, group: "High priority" }, today);
+  assert.ok(high.some((a) => a.id === "tasks:URGENT"));
+  assert.ok(high.some((a) => a.id === "tasks:HIGH"));
+  assert.ok(!high.some((a) => a.id === "tasks:OLD-0"));
+  const upcoming = filterDailyActions(actions, { ...defaultActionFilters, group: "Upcoming" }, today);
+  assert.ok(upcoming.some((a) => a.id === "tasks:URGENT"));
+  assert.ok(upcoming.every((a) => a.due > today));
+  const byDate = filterDailyActions(actions, { ...defaultActionFilters, sort: "Due date", kind: "tasks" }, today);
+  assert.equal(byDate[0].record.id, "OLD-0");
+  const byPriority = filterDailyActions(actions, { ...defaultActionFilters, sort: "Priority", kind: "tasks" }, today);
+  assert.equal(byPriority[0].record.id, "URGENT");
+});
+
+test("the collapsed queue keeps a due-today row visible even with more than six urgent items", () => {
+  const items = Array.from({ length: 9 }, (_, index) => ({ id: `URGENT-${index}`, due: "2030-06-11" }));
+  items.push({ id: "TODAY", due: "2030-06-10" });
+  const visible = attentionPreview(items, "2030-06-10");
+  assert.equal(visible.length, 6);
+  assert.equal(visible[0].id, "URGENT-0");
+  assert.equal(visible[1].id, "TODAY");
+  assert.equal(visible[2].id, "URGENT-1");
+  assert.equal(items.length, 10);
+});
+
+
+test("today is visible near the top even when it already falls inside a long preview", () => {
+  const items = [{ id: "URGENT-A", due: "2030-06-09" }, { id: "URGENT-B", due: "2030-06-09" }, { id: "TODAY", due: "2030-06-10" }, { id: "LATER", due: "2030-06-11" }];
+  assert.deepEqual(attentionPreview(items, "2030-06-10").map((item) => item.id), ["URGENT-A", "TODAY", "URGENT-B", "LATER"]);
+  assert.deepEqual(attentionPreview(items, "2030-06-12"), items);
 });

@@ -1,5 +1,8 @@
 "use client";
+import { PreviewText, useProductionPreview } from "./production-preview";
 import { BulkWorkActions } from "./bulk-work-actions";
+import { WorkFilterPanel } from "./work-filters";
+import { filterWorkItems, workFiltersFromView } from "@/lib/work-filters";
 import { todayDate } from "@/lib/dates";
 import { SupplierProvisionalNotice } from "./supplier-provisional";
 import { useEffect, useState } from "react";
@@ -18,7 +21,7 @@ import {
 } from "lucide-react";
 import { ViewControls, ColumnVisibility } from "./saved-views";
 import { toast } from "sonner";
-import { scopedItems, WORKSPACES, type WorkspaceId } from "@/lib/workspaces";
+import { scopedItems, scopedAccounts, WORKSPACES, type WorkspaceId } from "@/lib/workspaces";
 import { useStore } from "@/lib/store";
 import {
   affiliateStages,
@@ -403,19 +406,28 @@ export function WorkBoard({
   openItem: (i: WorkItem, k: "tasks" | "cases") => void;
   create: () => void;
 }) {
+  const preview = useProductionPreview();
   const { data, setData, can, actor } = useStore((s) => ({ data: s.data, setData: s.setData, can: s.can, actor: s.actor }));
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState("All statuses");
-  const [manager, setManager] = useState("All managers");
-  const [view, setView] = useState(
-    kind === "cases" || taskView ? "list" : "board",
-  );
-  const [mine, setMine] = useState(
-    actor.roles.some((r) =>
-      ["Account Manager", "Operations Member"].includes(r),
-    ),
-  );
+  const [filters, setFilters] = useState(() => workFiltersFromView({
+    mine: actor.roles.some(role => ["Account Manager", "Operations Member"].includes(role)),
+  }));
+  const [currentDate, setCurrentDate] = useState(todayDate);
+  const query = filters.query;
+  const filter = filters.status || "All statuses";
+  const manager = filters.assignee || "All assignees";
+  const mine = filters.mine;
+  const setQuery = (query: string) => setFilters(f => ({...f, query}));
+  const setFilter = (status: string) => setFilters(f => ({...f, status: status === "All statuses" ? "" : status}));
+  const setManager = (assignee: string) => setFilters(f => ({...f, assignee: assignee === "All assignees" ? "" : assignee}));
+  const setMine = (mine: boolean) => setFilters(f => ({...f, mine}));
+  const [view, setView] = useState(kind === "cases" || taskView ? "list" : "board");
+  useEffect(() => {
+    const updateDate = () => setCurrentDate(todayDate());
+    const timer = setInterval(updateDate, 60000);
+    window.addEventListener("focus", updateDate);
+    return () => { clearInterval(timer); window.removeEventListener("focus", updateDate); };
+  }, []);
   const [sort, setSort] = useState("due");
   const [asc, setAsc] = useState(true);
   const columns = [
@@ -432,23 +444,17 @@ export function WorkBoard({
   const viewModule = `work-${workspace}-${kind}`;
   const stages = kind === "cases" ? caseStages : workStages;
   const records = scopedItems(data, kind, workspace);
-  const rows = records
-    .filter(
-      (r) =>
-        (filter === "All statuses" || r.status === filter) &&
-        (manager === "All managers" || r.assignee === manager) &&
-        (!mine || r.assignee === actor.name) &&
-        `${r.title} ${r.id} ${data.accounts.find((a) => a.id === r.accountId)?.name}`
-          .toLowerCase()
-          .includes(query.toLowerCase()),
-    )
-    .sort(
-      (a, b) =>
-        String(a[sort as keyof WorkItem]).localeCompare(
-          String(b[sort as keyof WorkItem]),
-        ) * (asc ? 1 : -1),
-    );
-  useEffect(() => { setSelectedIds([]); }, [query, filter, manager, mine, workspace, kind]);
+  const filterAccounts = scopedAccounts(data, workspace);
+  const filterCases = scopedItems(data, "cases", workspace);
+  const assignees = Array.from(new Set([
+    ...records.map(record => record.assignee),
+    ...data.users.filter(user => user.active).map(user => user.name),
+    ...(filters.assignee ? [filters.assignee] : []),
+  ])).sort();
+  const rows = filterWorkItems(records, filters, {
+    kind, accounts: filterAccounts, tasks: data.tasks, actorName: actor.name, today: currentDate,
+  }).sort((a, b) => String(a[sort as keyof WorkItem]).localeCompare(String(b[sort as keyof WorkItem])) * (asc ? 1 : -1));
+  useEffect(() => { setSelectedIds([]); }, [filters, currentDate, workspace, kind]);
   const editable = rows.filter((r) => can(kind === "cases" ? "cases.edit" : "tasks.edit", r));
   const selection = editable.filter((r) => selectedIds.includes(r.id));
   const toggle = (id: string) => setSelectedIds((ids) => ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]);
@@ -482,7 +488,7 @@ export function WorkBoard({
   };
   const isCase = kind === "cases";
   const canCreate = can(isCase ? "cases.create" : "tasks.create");
-  const creationHint = actor.roles.includes("Operations Member")
+  const creationHint = preview ? "Your role can update assigned work. Contact your manager to create or assign work." : actor.roles.includes("Operations Member")
     ? "Operations Members update assigned work. To create and assign work in this demo, select Marcus Reed — Operations Manager in the Demo role switcher."
     : `Your current demo role cannot create ${isCase ? "support cases" : "work requests"}. Select an authorized role in the Demo role switcher.`;
   const headings = isCase
@@ -567,7 +573,7 @@ export function WorkBoard({
       )}
       <ViewControls
         module={viewModule}
-        snapshot={{ query, filter, manager, view, mine, sort, asc }}
+        snapshot={{ ...filters, view, sort, asc }}
         defaults={{
           view: kind === "cases" || taskView ? "list" : "board",
           columns,
@@ -577,13 +583,10 @@ export function WorkBoard({
         onColumns={(value) => setSelectedColumns(["ID", ...value.filter((column) => column !== "ID" && columns.includes(column))])}
         requiredColumns={["ID"]}
         onApply={(v) => {
-          setQuery(String(v.query || ""));
-          setFilter(String(v.filter || "All statuses"));
-          setManager(String(v.manager || "All managers"));
+          setFilters(workFiltersFromView(v));
           setView(
             String(v.view || (kind === "cases" || taskView ? "list" : "board")),
           );
-          setMine(v.mine === true);
           setSort(String(v.sort || "due"));
           setAsc(v.asc !== false);
         }}
@@ -598,12 +601,19 @@ export function WorkBoard({
         setQuery={setQuery}
         manager={manager}
         setManager={setManager}
+        managerLabel="Assignee"
+        managerAllLabel="All assignees"
+        managerOptions={assignees}
+        showManagerIcon={false}
+        filterLabel="Status"
         filter={filter}
         setFilter={setFilter}
         filterOptions={["All statuses", ...stages]}
         view={view}
         setView={setView}
       />
+      <WorkFilterPanel filters={filters} onChange={setFilters} accounts={filterAccounts} cases={filterCases}
+        categories={Array.from(new Set(records.map(record => record.category)))} kind={kind} shown={rows.length} total={records.length} />
       {editable.length > 0 && <div className="selection-controls"><label><input type="checkbox" className="record-checkbox" aria-label="Select all visible work" checked={selection.length === editable.length && editable.length > 0} ref={(node) => { if (node) node.indeterminate = selection.length > 0 && selection.length < editable.length; }} onChange={(e) => setSelectedIds(e.target.checked ? editable.map((r) => r.id) : [])} /> Select all visible ({editable.length})</label><span>Select records to update them together.</span></div>}
       <BulkWorkActions kind={kind} selected={selection} clear={() => setSelectedIds([])} />
       {view === "board" ? (
@@ -720,7 +730,7 @@ export function WorkBoard({
                     <td>
                       <span className="identity">
                         <Avatar name={r.assignee} size={25} />
-                        {r.assignee.split(" ")[0]}
+                        {r.assignee}
                       </span>
                     </td>
                     <td
@@ -765,13 +775,16 @@ export function WorkDetail({
   edit,
   openAccount,
   openLinkedCase,
+  createWork,
 }: {
   selected: { id: string; kind: "tasks" | "cases" } | null;
   onClose: () => void;
   edit: (r: WorkItem, k: "tasks" | "cases") => void;
   openAccount: (a: Account) => void;
   openLinkedCase: (i: WorkItem) => void;
+  createWork: (supportCase: WorkItem) => void;
 }) {
+  const preview = useProductionPreview();
   const { data, setData, can, actor } = useStore((s) => ({ data: s.data, setData: s.setData, can: s.can, actor: s.actor }));
   const [comment, setComment] = useState("");
   const [tab, setTab] = useState("Comments");
@@ -803,6 +816,12 @@ export function WorkDetail({
         <div className="profile-controls">
           <Badge>{r.priority}</Badge>
           <Badge>{r.category}</Badge>
+          {kind === "cases" && can("tasks.create", { accountId: r.accountId }) && (
+            <Button size="sm" onClick={() => createWork(r)}>
+              <Plus size={14} />
+              Create work request
+            </Button>
+          )}
           <Button
             disabled={!can(kind === "cases" ? "cases.edit" : "tasks.edit", r)}
             variant="outline"
@@ -886,7 +905,7 @@ export function WorkDetail({
                     { reminder: e.target.value },
                     `Reminder set to ${e.target.value}.`,
                   ))) return;
-                  toast.success("Demo reminder saved");
+                  toast.success(preview ? "Reminder saved" : "Demo reminder saved");
                 }}
               />
             </label>
@@ -953,7 +972,7 @@ export function WorkDetail({
           )}
           <h3>Attachments</h3>
           <p className="subtle">
-            Demo file references. Contents are not uploaded.
+            <PreviewText demo="Demo file references. Contents are not uploaded." clean="File references" />
           </p>
           {r.attachments.map((f, i) => (
             <div className="attachment" key={f + i}>

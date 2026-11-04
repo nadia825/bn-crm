@@ -1,4 +1,5 @@
 "use client";
+import { useProductionPreview } from "./production-preview";
 import { SupplierProvisionalNotice } from "./supplier-provisional";
 import { useState } from "react";
 import {
@@ -119,7 +120,7 @@ export function Contacts({
           {!rows.length && <EmptyState />}
         </div>
         <div className="table-footer">
-          {rows.length} contacts · Fictional contact information
+          {rows.length} contacts <span className="demo-only">· Fictional contact information</span>
         </div>
       </Card>
     </>
@@ -368,7 +369,7 @@ function BarrelForm({
       }}
     >
       <DialogTitle>{record ? "Edit barrel" : "New barrel"}</DialogTitle>
-      <DialogDescription>
+      <DialogDescription className="demo-only">
         Mock barrel details. Supplier links are illustrative while their
         relationship with brands and affiliates is being defined.
       </DialogDescription>
@@ -635,6 +636,7 @@ export function Reports() {
   );
 }
 export function Settings() {
+  const preview = useProductionPreview();
   const { data, setData, can, resetDemo, serverMode, legacyAvailable, importLegacy, saving } = useStore((s) => ({ data: s.data, setData: s.setData, can: s.can, resetDemo: s.resetDemo, serverMode: s.serverMode, legacyAvailable: s.legacyAvailable, importLegacy: s.importLegacy, saving: s.saving }));
   const [reset, setReset] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -683,7 +685,7 @@ export function Settings() {
         <Card className="settings-card">
           <PanelHeading
             title="Notification preferences"
-            subtitle="Preferences are saved locally for this prototype"
+            subtitle={preview ? "Choose which updates you want to see" : "Preferences are saved locally for this prototype"}
           />
           {(["reminders", "digest"] as const).map((k) => (
             <label className="settings-toggle" key={k}>
@@ -696,7 +698,7 @@ export function Settings() {
                 <small>
                   {k === "reminders"
                     ? "Show upcoming work and account follow-ups in notifications."
-                    : "Save your preference for a weekly summary. No emails are sent."}
+                    : (preview ? "Save your preference for a weekly summary." : "Save your preference for a weekly summary. No emails are sent.")}
                 </small>
               </span>
               <input
@@ -717,7 +719,7 @@ export function Settings() {
         <Card className="settings-card">
           <PanelHeading
             title="Your team"
-            subtitle={`Demo organization · ${data.users.length} fictional users`}
+            subtitle={preview ? `${data.users.length} team members` : `Demo organization · ${data.users.length} fictional users`}
           />
           {data.users.map((u) => (
             <div className="team-row" key={u.id}>
@@ -734,7 +736,7 @@ export function Settings() {
             </div>
           ))}
         </Card>
-        <Card className="settings-card">
+        <Card className="settings-card demo-only">
           <PanelHeading
             title="Prototype & data"
             subtitle={serverMode ? "BN CRM v0 · Shared local SQLite database" : "BN CRM v0 · Browser-local persistence"}

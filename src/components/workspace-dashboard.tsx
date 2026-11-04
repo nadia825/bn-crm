@@ -1,4 +1,5 @@
 "use client";
+import { useProductionPreview } from "./production-preview";
 import { DailyActions } from "./daily-actions";
 import { todayDate } from "@/lib/dates";
 import {
@@ -68,6 +69,7 @@ type Metric = {
 
 export function WorkspaceDashboard(props: Props) {
   const { workspace, navigate, createAccount, createWork } = props;
+  const preview = useProductionPreview();
   const { data } = useStore((s) => ({ data: s.data }));
   const accounts = scopedAccounts(data, workspace);
   const cases = scopedItems(data, "cases", workspace).filter((c) =>
@@ -138,7 +140,7 @@ export function WorkspaceDashboard(props: Props) {
             {
               label: "Shopify connected",
               value: accounts.filter((a) => a.shopify === "Connected").length,
-              detail: "Store connection recorded in demo",
+              detail: preview ? "Store connection recorded" : "Store connection recorded in demo",
               icon: Store,
               color: "purple",
               page: "Affiliate Pipeline",
@@ -184,7 +186,7 @@ export function WorkspaceDashboard(props: Props) {
             {
               label: "My open tasks",
               value: tasks.filter((t) => t.assignee === managers[0]).length,
-              detail: `Assigned to ${managers[0].split(" ")[0]}`,
+              detail: `Assigned to ${managers[0]}`,
               icon: CalendarDays,
               color: "blue",
               page: "Tasks",
@@ -410,7 +412,7 @@ function BrandHome({
             );
           })}
         </div>
-        <div className="workspace-card-foot">
+        <div className="workspace-card-foot demo-only">
           <ShieldCheck size={13} />
           Verification and activation are simulated
         </div>

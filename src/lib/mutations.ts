@@ -8,6 +8,7 @@ import {
 } from "./data.ts";
 import { can, ROLES, visibleStore, type Action } from "./access.ts";
 import type { AuditEntry, DemoUser } from "./model.ts";
+import { activityDetailsError, canAssignActivity } from "./activities.ts";
 
 const same = (a: unknown, b: unknown) =>
   JSON.stringify(a) === JSON.stringify(b);
@@ -426,6 +427,8 @@ export function applyMutation(
           )
             throw new Error("Choose a client account and a valid mock amount.");
         } else if (collection === "activities") {
+          const detailsError = activityDetailsError(item, raw);
+          if (detailsError) throw new Error(detailsError);
           require("activities.edit", old || item);
           if(old && old.accountId !== item.accountId) require("activities.edit", item);
           if (
@@ -435,15 +438,17 @@ export function applyMutation(
             )
           )
             throw new Error("Choose an authorized account.");
-          if (
-            !actor.roles.some((r) =>
-              ["System Admin", "Sales Manager", "Operations Manager"].includes(
-                r,
-              ),
-            ) &&
-            item.owner !== actor.name
-          )
-            throw new Error("Activities must be assigned to you.");
+          if (!canAssignActivity(actor) && (item.owner !== (old?.owner || actor.name) ||
+              !same(item.participantIds || [], old?.participantIds || [])))
+            throw new Error("Only managers can change the owner or participants.");
+          if ((!old || old.owner !== item.owner) && !raw.users.some((u) => u.active && u.name === item.owner))
+            throw new Error("Choose an active owner.");
+          if ((item.participantIds || []).some((id: string) => !old?.participantIds?.includes(id) && !raw.users.some((u) => u.id === id && u.active)))
+            throw new Error("New participants must be active team members.");
+          for (const [key, collection, action] of [["caseId", "cases", "cases.read"], ["taskId", "tasks", "tasks.read"]] as const) {
+            if (item[key] && item[key] !== old?.[key] && !raw[collection].some((r) => r.id === item[key] && can(actor, action, r, raw)))
+              throw new Error("Choose a related record available to your role.");
+          }
         } else if (collection === "users") {
           require("users.edit");
           if (

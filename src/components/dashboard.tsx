@@ -547,7 +547,7 @@ export function Dashboard({ navigate, openAccount, openItem, newWork }: Props) {
           <span className="brand-mini">bn</span> A little more connected. A lot
           more possible.
         </span>
-        <span>BN CRM v0 · Fictional demo data</span>
+        <span className="demo-only">BN CRM v0 · Fictional demo data</span>
       </div>
     </>
   );
