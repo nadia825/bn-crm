@@ -1,5 +1,8 @@
 "use client";
-import { useState } from "react";
+import { BulkWorkActions } from "./bulk-work-actions";
+import { todayDate } from "@/lib/dates";
+import { SupplierProvisionalNotice } from "./supplier-provisional";
+import { useEffect, useState } from "react";
 import {
   Plus,
   CalendarDays,
@@ -133,7 +136,7 @@ export function Pipeline({
   openAccount: (a: Account) => void;
   create: () => void;
 }) {
-  const { data, setData, can, actor } = useStore();
+  const { data, setData, can, actor } = useStore((s) => ({ data: s.data, setData: s.setData, can: s.can, actor: s.actor }));
   const [query, setQuery] = useState("");
   const [manager, setManager] = useState("All managers");
   const [filter, setFilter] = useState("All stages");
@@ -162,8 +165,8 @@ export function Pipeline({
         .toLowerCase()
         .includes(query.toLowerCase()),
   );
-  const move = (id: string, stage: string) => {
-    const saved = setData((d) => ({
+  const move = async (id: string, stage: string) => {
+    const saved = await setData((d) => ({
       ...d,
       accounts: d.accounts.map((a) =>
         a.id === id
@@ -191,7 +194,7 @@ export function Pipeline({
         title={supplier ? "Supplier pipeline" : "Affiliate pipeline"}
         subtitle={
           supplier
-            ? "Build stronger sourcing partnerships, from prospect to active supplier."
+            ? "Provisional supplier workflow · Relationships with brands and affiliates are still to be defined."
             : "Turn promising conversations into lasting partnerships."
         }
       >
@@ -205,9 +208,10 @@ export function Pipeline({
           onClick={create}
         >
           <Plus size={16} />
-          {supplier ? "New supplier" : "New affiliate"}
+          {supplier ? "New mock supplier" : "New affiliate"}
         </Button>
       </SectionTitle>
+      {supplier && <SupplierProvisionalNotice />}
       <div className="pipeline-kpis">
         <span>
           <strong>{all.length}</strong>Total{" "}
@@ -216,7 +220,7 @@ export function Pipeline({
         <span>
           <i className="dot green-dot" />
           <strong>{all.filter((a) => a.status === "Active").length}</strong>
-          Active partnerships
+          {supplier ? "Mock active suppliers" : "Active partnerships"}
         </span>
         <span>
           <strong>
@@ -224,7 +228,7 @@ export function Pipeline({
               ? data.barrels.length
               : all.filter((a) => a.shopify === "Connected").length}
           </strong>
-          {supplier ? "Connected barrels" : "Shopify connected"}
+          {supplier ? "Illustrative barrel links" : "Shopify connected"}
         </span>
         <span className="subtle">
           Drag cards to update a stage. Open a card for details.
@@ -399,7 +403,8 @@ export function WorkBoard({
   openItem: (i: WorkItem, k: "tasks" | "cases") => void;
   create: () => void;
 }) {
-  const { data, setData, can, actor } = useStore();
+  const { data, setData, can, actor } = useStore((s) => ({ data: s.data, setData: s.setData, can: s.can, actor: s.actor }));
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("All statuses");
   const [manager, setManager] = useState("All managers");
@@ -443,7 +448,13 @@ export function WorkBoard({
           String(b[sort as keyof WorkItem]),
         ) * (asc ? 1 : -1),
     );
-  const move = (id: string, status: string) => {
+  useEffect(() => { setSelectedIds([]); }, [query, filter, manager, mine, workspace, kind]);
+  const editable = rows.filter((r) => can(kind === "cases" ? "cases.edit" : "tasks.edit", r));
+  const selection = editable.filter((r) => selectedIds.includes(r.id));
+  const toggle = (id: string) => setSelectedIds((ids) => ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]);
+  const selectionBox = (r: WorkItem) => can(kind === "cases" ? "cases.edit" : "tasks.edit", r) &&
+    <input className="record-checkbox" type="checkbox" aria-label={`Select ${r.id}`} checked={selectedIds.includes(r.id)} onChange={() => toggle(r.id)} onClick={(e) => e.stopPropagation()} />;
+  const move = async (id: string, status: string) => {
     const item = data[kind].find((x) => x.id === id);
     if (
       kind === "cases" &&
@@ -454,7 +465,7 @@ export function WorkBoard({
       if (item) openItem(item, kind);
       return;
     }
-    const saved = setData((d) => ({
+    const saved = await setData((d) => ({
       ...d,
       [kind]: d[kind].map((t) =>
         t.id === id
@@ -470,6 +481,10 @@ export function WorkBoard({
     toast.success(`Status updated to ${status}`);
   };
   const isCase = kind === "cases";
+  const canCreate = can(isCase ? "cases.create" : "tasks.create");
+  const creationHint = actor.roles.includes("Operations Member")
+    ? "Operations Members update assigned work. To create and assign work in this demo, select Marcus Reed — Operations Manager in the Demo role switcher."
+    : `Your current demo role cannot create ${isCase ? "support cases" : "work requests"}. Select an authorized role in the Demo role switcher.`;
   const headings = isCase
     ? ["Support cases", "Thoughtful support for every brand and affiliate."]
     : taskView
@@ -482,13 +497,19 @@ export function WorkBoard({
         subtitle={`${WORKSPACES[workspace].name} workspace · ${headings[1]}`}
       >
         <Button
-          disabled={!can(kind === "cases" ? "cases.create" : "tasks.create")}
+          disabled={!canCreate}
+          aria-describedby={!canCreate ? "work-creation-permission" : undefined}
           onClick={create}
         >
           <Plus size={16} />
           {isCase ? "New case" : "New work request"}
         </Button>
       </SectionTitle>
+      {!canCreate && (
+        <div id="work-creation-permission" className="info-callout spaced">
+          <span>{creationHint}</span>
+        </div>
+      )}
       {taskView ? (
         <div className="account-summary">
           <button
@@ -582,6 +603,8 @@ export function WorkBoard({
         view={view}
         setView={setView}
       />
+      {editable.length > 0 && <div className="selection-controls"><label><input type="checkbox" className="record-checkbox" aria-label="Select all visible work" checked={selection.length === editable.length && editable.length > 0} ref={(node) => { if (node) node.indeterminate = selection.length > 0 && selection.length < editable.length; }} onChange={(e) => setSelectedIds(e.target.checked ? editable.map((r) => r.id) : [])} /> Select all visible ({editable.length})</label><span>Select records to update them together.</span></div>}
+      <BulkWorkActions kind={kind} selected={selection} clear={() => setSelectedIds([])} />
       {view === "board" ? (
         <Kanban
           records={rows}
@@ -593,6 +616,7 @@ export function WorkBoard({
           onMove={move}
           renderCard={(r) => (
             <>
+              <div className="work-card-selection">{selectionBox(r)}</div>
               <button
                 className="work-card-main"
                 onClick={() => openItem(r, kind)}
@@ -666,7 +690,7 @@ export function WorkBoard({
                 {rows.map((r) => (
                   <tr key={r.id}>
                     <td className="record-id" onClick={() => openItem(r, kind)}>
-                      {r.id}
+                      <span className="work-id-cell">{selectionBox(r)}<button onClick={() => openItem(r, kind)}>{r.id}</button></span>
                     </td>
                     <td onClick={() => openItem(r, kind)}>
                       <strong>{r.title}</strong>
@@ -700,7 +724,7 @@ export function WorkBoard({
                     </td>
                     <td
                       className={
-                        r.due < "2026-10-28" &&
+                        r.due < todayDate() &&
                         !["Done", "Closed", "Resolved", "Aborted"].includes(
                           r.status,
                         )
@@ -747,7 +771,7 @@ export function WorkDetail({
   openAccount: (a: Account) => void;
   openLinkedCase: (i: WorkItem) => void;
 }) {
-  const { data, setData, can, actor } = useStore();
+  const { data, setData, can, actor } = useStore((s) => ({ data: s.data, setData: s.setData, can: s.can, actor: s.actor }));
   const [comment, setComment] = useState("");
   const [tab, setTab] = useState("Comments");
   if (!selected) return null;
@@ -755,8 +779,8 @@ export function WorkDetail({
   const r = data[kind].find((t) => t.id === id);
   if (!r) return null;
   const account = data.accounts.find((a) => a.id === r.accountId)!;
-  const update = (patch: Partial<WorkItem>, history?: string) =>
-    setData((d) => ({
+  const update = async (patch: Partial<WorkItem>, history?: string) =>
+    await setData((d) => ({
       ...d,
       [kind]: d[kind].map((t) =>
         t.id === id
@@ -798,7 +822,7 @@ export function WorkDetail({
                 label="Record status"
                 value={r.status}
                 options={kind === "cases" ? caseStages : workStages}
-                onChange={(e) => {
+                onChange={async (e) => {
                   const status = e.target.value;
                   if (
                     kind === "cases" &&
@@ -808,7 +832,7 @@ export function WorkDetail({
                     toast.error("Add a resolution before resolving this case.");
                     return;
                   }
-                  update({ status }, `Status changed to ${status}.`);
+                  if (!(await update({ status }, `Status changed to ${status}.`))) return;
                   toast.success("Status updated");
                 }}
               />
@@ -830,8 +854,8 @@ export function WorkDetail({
                     ...data.users.filter((u) => u.active).map((u) => u.name),
                   ]),
                 )}
-                onChange={(e) =>
-                  update(
+                onChange={async (e) =>
+                  await update(
                     { assignee: e.target.value },
                     `Assigned to ${e.target.value}.`,
                   )
@@ -856,11 +880,11 @@ export function WorkDetail({
                   "None",
                 ]}
                 value={r.reminder}
-                onChange={(e) => {
-                  update(
+                onChange={async (e) => {
+                  if (!(await update(
                     { reminder: e.target.value },
                     `Reminder set to ${e.target.value}.`,
-                  );
+                  ))) return;
                   toast.success("Demo reminder saved");
                 }}
               />
@@ -907,22 +931,22 @@ export function WorkDetail({
                 aria-label="Case resolution"
                 placeholder="Document the outcome before resolving the case…"
                 value={r.resolution}
-                onChange={(e) => {
+                onChange={async (e) => {
                   const resolution = e.target.value;
                   const reopen =
                     !resolution.trim() &&
                     ["Resolved", "Closed"].includes(r.status);
-                  update(
+                  if (!(await update(
                     {
                       resolution,
                       ...(reopen ? { status: "In Progress" } : {}),
                     },
                     reopen ? "Resolution cleared; case reopened." : undefined,
-                  );
+                  ))) return;
                 }}
               />
               <span className="subtle">
-                Saved automatically in this browser.
+                Changes save automatically.
               </span>
             </div>
           )}
@@ -943,15 +967,15 @@ export function WorkDetail({
               disabled={!can(kind === "cases" ? "cases.edit" : "tasks.edit", r)}
               type="file"
               multiple
-              onChange={(e) => {
+              onChange={async (e) => {
                 const names = Array.from(e.target.files || []).map(
                   (f) => f.name,
                 );
                 if (names.length) {
-                  update(
+                  if (!(await update(
                     { attachments: [...r.attachments, ...names] },
                     "Added attachment references.",
-                  );
+                  ))) return;
                   toast.success("File references added");
                 }
               }}
@@ -982,11 +1006,11 @@ export function WorkDetail({
                   !comment.trim() ||
                   !can(kind === "cases" ? "cases.edit" : "tasks.edit", r)
                 }
-                onClick={() => {
-                  update(
+                onClick={async () => {
+                  if (!(await update(
                     { comments: [...r.comments, event(comment.trim())] },
                     "Added a comment.",
-                  );
+                  ))) return;
                   setComment("");
                   toast.success("Comment added");
                 }}

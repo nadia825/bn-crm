@@ -1,9 +1,9 @@
 @import "tailwindcss";
 @theme inline {
-  --color-primary: #8150d5;
-  --color-background: #f8f9fc;
-  --color-foreground: #282534;
-  --font-sans: Arial, Helvetica, sans-serif;
+  --color-primary: #315fd4;
+  --color-background: #f5f7fb;
+  --color-foreground: #202d40;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
 }
 :root {
   --purple: #8251d4;
@@ -5220,7 +5220,7 @@ tbody tr:last-child td {
   font-weight: 700;
   letter-spacing: 0.8px;
 }
-.demo-role-switcher select {
+.demo-role-switcher .dashboard-select {
   font: inherit;
   font-size: 11px;
   background: transparent;
@@ -5670,7 +5670,7 @@ textarea[readonly] {
     min-width: 235px;
     max-width: 280px;
   }
-  .demo-role-switcher select {
+  .demo-role-switcher .dashboard-select {
     max-width: 235px;
   }
   .role-catalog {
@@ -5686,7 +5686,7 @@ textarea[readonly] {
     max-width: 240px;
     padding: 5px 8px;
   }
-  .demo-role-switcher select {
+  .demo-role-switcher .dashboard-select {
     font-size: 10px;
     max-width: 193px;
   }
@@ -5756,7 +5756,7 @@ textarea[readonly] {
   .demo-role-switcher label {
     width: 100%;
   }
-  .demo-role-switcher select {
+  .demo-role-switcher .dashboard-select {
     width: 100%;
     max-width: none;
     text-overflow: ellipsis;
@@ -5774,3 +5774,5 @@ textarea[readonly] {
     color: #8f809a;
   }
 }
+
+.storage-status{display:flex;justify-content:space-between;gap:12px;align-items:center;min-height:32px;padding:6px 20px;background:#f1f5f9;color:#475569;font-size:11px;border-bottom:1px solid #e2e8f0}.storage-status+ .app-shell{min-height:calc(100dvh - 32px)}.storage-status button{text-decoration:underline;font-weight:600}.storage-error{background:#fff3e2;color:#92400e}.storage-status span:last-child{text-align:right}@media(max-width:650px){.storage-status{flex-wrap:wrap;padding:7px 12px}.storage-status span:last-child{text-align:left}}

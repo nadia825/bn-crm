@@ -100,7 +100,7 @@ function criticalAccountActions(
     out.push("accounts.edit");
   if (
     old.type === "Corporate Brand" &&
-    old.status !== next.status &&
+    (old.status !== next.status || old.stage !== next.stage) &&
     next.status !== "Active"
   )
     out.push("accounts.edit");
@@ -350,6 +350,8 @@ export function applyMutation(
         } else if (collection === "tasks" || collection === "cases") {
           const kind = collection;
           require(`${kind}.${old ? "edit" : "create"}` as Action, old || item);
+          if(old && old.accountId !== item.accountId)
+            require(`${kind}.edit` as Action, item);
           if (old && old.assignee !== item.assignee) {
             require(`${kind}.assign` as Action, old);
             if (
@@ -398,6 +400,7 @@ export function applyMutation(
             throw new Error("Linked cases must belong to the same account.");
         } else if (collection === "barrels") {
           require("barrels.edit", old || item);
+          if(old && old.affiliateId !== item.affiliateId) require("barrels.edit", item);
           if (
             !raw.accounts.some(
               (a) => a.id === item.affiliateId && a.type === "Affiliate",
@@ -424,6 +427,7 @@ export function applyMutation(
             throw new Error("Choose a client account and a valid mock amount.");
         } else if (collection === "activities") {
           require("activities.edit", old || item);
+          if(old && old.accountId !== item.accountId) require("activities.edit", item);
           if (
             !raw.accounts.some(
               (a) =>

@@ -1,0 +1,1153 @@
+{
+  "title": "BN CRM manual test scripts",
+  "version": "1.0",
+  "date": "2026-10-29",
+  "baseline_commit": "cba226b9c94efb1100beeb4d1899c5f5b1c3af8a",
+  "baseline": "Published prototype after Supplier provisional clarification",
+  "url": "https://bn-crm-workspace-v0.msallem-ines.chatgpt.site/",
+  "cases": [
+    {
+      "id": "BN-01",
+      "title": "Find your daily workspace",
+      "story": "A team member needs the right starting point for their job.",
+      "users": "All eight demo identities",
+      "priority": "P0",
+      "minutes": 5,
+      "preconditions": "Open the published CRM in your dedicated test browser profile. Keep this one tab for the run.",
+      "data": "Use the header Demo role switcher. Do not change user assignments yet.",
+      "dependencies": [],
+      "steps": [
+        {
+          "id": "BN-01.1",
+          "action": "Preview Olivia, then James and Sofia. Open each dashboard and sidebar.",
+          "expected": "Olivia has Administration; James has sales and Team Assignments; Sofia has assigned account work. Dashboards change with the role."
+        },
+        {
+          "id": "BN-01.2",
+          "action": "Preview Marcus and Avery. Open their Operations dashboards.",
+          "expected": "Marcus has team work and Pending Approvals. Avery sees assigned work and has no approval access."
+        },
+        {
+          "id": "BN-01.3",
+          "action": "Preview Taylor, Riley and Maya.",
+          "expected": "Taylor has Billing and Finance Reports; Riley has read-only designated records; Maya has combined Account Manager and Finance modules."
+        },
+        {
+          "id": "BN-01.4",
+          "action": "Return to Olivia. Record the browser, date and site URL in the tracker.",
+          "expected": "The switcher is clearly a demo preview. No production login or real user invitation is implied."
+        }
+      ],
+      "after": "Leave Olivia selected. Keep all eight original demo identities unchanged.",
+      "status": "Not run"
+    },
+    {
+      "id": "BN-02",
+      "title": "Hand a new brand from Sales to its Account Manager",
+      "story": "Sales wins a new brand and gives an Account Manager ownership.",
+      "users": "James then Sofia",
+      "priority": "P0",
+      "minutes": 6,
+      "preconditions": "Use a unique RUN value. No account with the test name exists.",
+      "data": "Brand A = UAT-{RUN}-Harbor Spirits. Email harbor-{RUN}@brands.example. Contact Dana Brooks. Retailer Oak Street Liquors. Follow-up D+7. Leave BNX ID empty.",
+      "dependencies": [
+        "BN-01"
+      ],
+      "steps": [
+        {
+          "id": "BN-02.1",
+          "action": "As James, switch to Brands and create a new brand using Brand A details. Assign Sofia Chen.",
+          "expected": "One account is created in Onboarding. A new corporate brand is not immediately Active."
+        },
+        {
+          "id": "BN-02.2",
+          "action": "Open its profile and record its generated account ID as BRAND_A_ID in the tracker.",
+          "expected": "The name, owner, email, contact, retailer and follow-up match the form."
+        },
+        {
+          "id": "BN-02.3",
+          "action": "Switch to Sofia and find Brand A in her accessible accounts.",
+          "expected": "Sofia can open and edit the assigned brand; the account ID is unchanged."
+        },
+        {
+          "id": "BN-02.4",
+          "action": "As Olivia, find Brand A in All Accounts and Brands.",
+          "expected": "Both views refer to the same record, with no second copy."
+        }
+      ],
+      "after": "Retain Brand A for BN-03 through BN-05 and later account work.",
+      "status": "Not run"
+    },
+    {
+      "id": "BN-03",
+      "title": "Record the outcome of an account call",
+      "story": "The Account Manager captures a customer request and the next follow-up.",
+      "users": "Sofia",
+      "priority": "P1",
+      "minutes": 5,
+      "preconditions": "Brand A exists and is owned by Sofia.",
+      "data": "Note: UAT {RUN}: customer requested a November launch review. Description: UAT {RUN} priority launch. Follow-up D+8.",
+      "dependencies": [
+        "BN-02"
+      ],
+      "steps": [
+        {
+          "id": "BN-03.1",
+          "action": "Edit Brand A description and next follow-up. Save.",
+          "expected": "The changes appear on the same account and the retailer relationship remains intact."
+        },
+        {
+          "id": "BN-03.2",
+          "action": "Open Notes & files and add the call note.",
+          "expected": "The note is attributed to Sofia and appears once."
+        },
+        {
+          "id": "BN-03.3",
+          "action": "Review Contacts and Relationships.",
+          "expected": "Dana Brooks and Oak Street Liquors still belong to Brand A; no unrelated account is changed."
+        },
+        {
+          "id": "BN-03.4",
+          "action": "Reload, reselect Sofia if necessary, and reopen Brand A.",
+          "expected": "Description, note and follow-up persist. Use the account ID to confirm the record."
+        }
+      ],
+      "after": "Retain the note and updated date as evidence for persistence and audit checks.",
+      "status": "Not run"
+    },
+    {
+      "id": "BN-04",
+      "title": "Block a brand launch with incomplete setup",
+      "story": "A launch must not proceed while mandatory setup is incomplete.",
+      "users": "Sofia",
+      "priority": "P0",
+      "minutes": 4,
+      "preconditions": "Brand A is still in Onboarding with no completed checks.",
+      "data": "The protected checks are company profile, users/access, products, billing/Stripe, checkout and shipping/distributors.",
+      "dependencies": [
+        "BN-02"
+      ],
+      "steps": [
+        {
+          "id": "BN-04.1",
+          "action": "Open Brand A in Brand Onboarding. Attempt verification and submission before completing setup.",
+          "expected": "Verification and submission are unavailable. The brand remains Onboarding."
+        },
+        {
+          "id": "BN-04.2",
+          "action": "Complete only the first five requirements.",
+          "expected": "Progress is 5/6; verification still cannot pass and approval cannot be submitted."
+        },
+        {
+          "id": "BN-04.3",
+          "action": "Open the account from its directory.",
+          "expected": "Its lifecycle status remains Onboarding. Checking boxes has not activated it."
+        },
+        {
+          "id": "BN-04.4",
+          "action": "Leave Shipping & distributor settings unchecked.",
+          "expected": "All six requirements remain present; none can be removed from this workflow."
+        }
+      ],
+      "after": "Leave Brand A at 5/6 for BN-05.",
+      "status": "Not run"
+    },
+    {
+      "id": "BN-05",
+      "title": "Approve a verified brand through Operations",
+      "story": "The Account Manager submits a complete setup and Operations authorizes activation.",
+      "users": "Sofia then Marcus",
+      "priority": "P0",
+      "minutes": 6,
+      "preconditions": "Brand A is at 5/6 after BN-04.",
+      "data": "Review note: UAT {RUN}: setup reviewed for launch.",
+      "dependencies": [
+        "BN-04"
+      ],
+      "steps": [
+        {
+          "id": "BN-05.1",
+          "action": "As Sofia, complete the final check and run verification. Wait for completion.",
+          "expected": "Progress is 6/6 and verification becomes Verified. This is a simulated check."
+        },
+        {
+          "id": "BN-05.2",
+          "action": "Submit for approval. Inspect available approval actions as Sofia.",
+          "expected": "Approval becomes Pending approval; Sofia cannot approve or activate her own brand."
+        },
+        {
+          "id": "BN-05.3",
+          "action": "Switch to Marcus, open Operations > Pending Approvals, and locate BRAND_A_ID.",
+          "expected": "The same submitted brand is present with all six checks and Verified status."
+        },
+        {
+          "id": "BN-05.4",
+          "action": "Add the review note if offered and choose Approve & activate.",
+          "expected": "Brand A becomes Active and Approved; it leaves the pending queue."
+        },
+        {
+          "id": "BN-05.5",
+          "action": "Switch back to Sofia, reopen the same brand, and inspect onboarding/history.",
+          "expected": "Active status and Marcus\u2019s approval are visible on the shared record. Active setup checks are locked."
+        }
+      ],
+      "after": "Keep Brand A active. Reuse it for support and operations scenarios.",
+      "status": "Not run"
+    },
+    {
+      "id": "BN-06",
+      "title": "Return a launch for correction and resubmit",
+      "story": "Operations finds missing business information during a final review.",
+      "users": "James, Sofia and Marcus",
+      "priority": "P0",
+      "minutes": 8,
+      "preconditions": "Create a separate Brand B using the BN-02 pattern, owned by Sofia. As Sofia complete six checks, verify, and submit.",
+      "data": "Brand B = UAT-{RUN}-Orchard Distilling; orchard-{RUN}@brands.example. Rejection: UAT {RUN}: confirm distributor coverage.",
+      "dependencies": [
+        "BN-02"
+      ],
+      "steps": [
+        {
+          "id": "BN-06.1",
+          "action": "As Marcus, open Brand B in Pending Approvals and attempt Reject & return with no reason.",
+          "expected": "Rejection is blocked or requires a reason. The brand stays pending."
+        },
+        {
+          "id": "BN-06.2",
+          "action": "Enter the rejection reason and reject.",
+          "expected": "Approval becomes Rejected and verification returns to Pending; the brand is not Active."
+        },
+        {
+          "id": "BN-06.3",
+          "action": "As Sofia, review the rejection in launch history. Reopen and then complete the shipping requirement.",
+          "expected": "The reason is retained. Setup changes require fresh verification rather than silently preserving the prior result."
+        },
+        {
+          "id": "BN-06.4",
+          "action": "Run verification again and resubmit.",
+          "expected": "A new Pending approval state appears for the same Brand B ID."
+        },
+        {
+          "id": "BN-06.5",
+          "action": "As Marcus approve, then inspect history as Sofia.",
+          "expected": "Brand B is Active; rejection, resubmission and approval remain in the history."
+        }
+      ],
+      "after": "Keep Brand B for the cross-account linking test. Record BRAND_B_ID.",
+      "status": "Not run"
+    },
+    {
+      "id": "BN-07",
+      "title": "Let an Operations Member process assigned launch checks",
+      "story": "An Operations Member completes the setup work delegated to them.",
+      "users": "Olivia for preparation, then Avery",
+      "priority": "P0",
+      "minutes": 5,
+      "preconditions": "Use seeded Copperline Distilling BR-003 in a fresh dataset before it is activated. Its Product and Shipping checks are assigned to Avery. If it is already Active, use another unfinished seeded brand with Avery shown as check owner; otherwise mark Blocked.",
+      "data": "Record the selected brand ID and original checklist values before changing anything.",
+      "dependencies": [],
+      "steps": [
+        {
+          "id": "BN-07.1",
+          "action": "As Avery, open Operations > Brand Onboarding and select the prepared brand.",
+          "expected": "The brand is visible because Avery has assigned onboarding work."
+        },
+        {
+          "id": "BN-07.2",
+          "action": "Complete an unchecked Product or Shipping check assigned to Avery.",
+          "expected": "Only that requirement changes and progress updates on the shared brand."
+        },
+        {
+          "id": "BN-07.3",
+          "action": "Try to change a requirement owned by a different person.",
+          "expected": "The control is disabled or the attempted change is rejected."
+        },
+        {
+          "id": "BN-07.4",
+          "action": "Inspect approval actions and then switch to Olivia to check the saved result.",
+          "expected": "Avery has no approval action; Olivia sees the assigned-check update with Avery as actor."
+        }
+      ],
+      "after": "Leave the selected brand unactivated. Record what was changed for repeatability.",
+      "status": "Not run"
+    },
+    {
+      "id": "BN-08",
+      "title": "Take an affiliate from lead to live partner",
+      "story": "An affiliate relationship progresses through the acquisition workflow.",
+      "users": "James then Sofia",
+      "priority": "P1",
+      "minutes": 7,
+      "preconditions": "Use a new affiliate; do not use Brand A for this workflow.",
+      "data": "Affiliate A = UAT-{RUN}-Tasting Club; tasting-{RUN}@affiliates.example; owner Sofia; contact Morgan Hale; retailer Oak Street Liquors; BNX ID empty.",
+      "dependencies": [
+        "BN-01"
+      ],
+      "steps": [
+        {
+          "id": "BN-08.1",
+          "action": "As James create Affiliate A at New. Record AFFILIATE_A_ID.",
+          "expected": "A single Affiliate record is created without entering Corporate Brand onboarding."
+        },
+        {
+          "id": "BN-08.2",
+          "action": "In pipeline List view, move it through Contacted, Negotiation, Contract Signed / Shopify, Pre-Launch: Shop Ready and Live.",
+          "expected": "Each selected stage saves and adds history. The ID stays unchanged."
+        },
+        {
+          "id": "BN-08.3",
+          "action": "Edit the affiliate\u2019s Shopify setting to Connected as a mock setup action.",
+          "expected": "The displayed setting changes locally; this does not authenticate with Shopify."
+        },
+        {
+          "id": "BN-08.4",
+          "action": "As Sofia, locate Affiliate A and inspect its stage, account status and retailers.",
+          "expected": "The same record is Live/Active with the saved retailer and mock integration status."
+        }
+      ],
+      "after": "Retain Affiliate A for lifecycle, barrel and assignment scenarios.",
+      "status": "Not run"
+    },
+    {
+      "id": "BN-09",
+      "title": "Pause and archive an affiliate without losing its work",
+      "story": "An affiliate stops trading while its customer case still needs attention.",
+      "users": "Sofia",
+      "priority": "P1",
+      "minutes": 5,
+      "preconditions": "Affiliate A exists. Create an Open account-related case titled UAT-{RUN}-Affiliate stock question, assigned to Sofia.",
+      "data": "Keep the case ID. The starting affiliate stage is Live.",
+      "dependencies": [
+        "BN-08"
+      ],
+      "steps": [
+        {
+          "id": "BN-09.1",
+          "action": "Move Affiliate A to On Hold using its stage selector. Open Alternative states.",
+          "expected": "The affiliate is in On Hold outside the main acquisition columns; its record and history remain accessible."
+        },
+        {
+          "id": "BN-09.2",
+          "action": "Open the account-related case.",
+          "expected": "The case remains Open. Account lifecycle changes have not resolved it."
+        },
+        {
+          "id": "BN-09.3",
+          "action": "Move the affiliate to Rejected, then Inactive. Inspect Alternative states each time.",
+          "expected": "Rejected and historical Inactive are separate named states; the same record is retained."
+        },
+        {
+          "id": "BN-09.4",
+          "action": "Return it to Live and inspect both pipeline views.",
+          "expected": "It appears in the main Live stage and no longer in alternative states. The case is still independently Open."
+        }
+      ],
+      "after": "Leave Affiliate A Live and retain its case for history evidence.",
+      "status": "Not run"
+    },
+    {
+      "id": "BN-10",
+      "title": "Hand an operational request to the delivery team",
+      "story": "An Account Manager raises launch work and an Operations Manager assigns the delivery owner.",
+      "users": "Sofia, Marcus and Avery",
+      "priority": "P0",
+      "minutes": 7,
+      "preconditions": "Brand A is owned by Sofia. It may already be Active.",
+      "data": "Task = UAT-{RUN}-Check launch inventory. Category Brand Operations. Priority High. Due D+7. Description Confirm the initial retailer allocation.",
+      "dependencies": [
+        "BN-02"
+      ],
+      "steps": [
+        {
+          "id": "BN-10.1",
+          "action": "As Sofia create the task linked to BRAND_A_ID and assigned to herself. Record TASK_A_ID.",
+          "expected": "The task is saved with the correct account, due date and New status."
+        },
+        {
+          "id": "BN-10.2",
+          "action": "As Marcus open Work Board, find TASK_A_ID, and assign Avery.",
+          "expected": "The task keeps its account and ID; the assigned owner becomes Avery."
+        },
+        {
+          "id": "BN-10.3",
+          "action": "As Avery open Assigned work, set In Progress, and add comment UAT {RUN}: inventory checked.",
+          "expected": "The task is editable by its assigned member; the comment author is Avery."
+        },
+        {
+          "id": "BN-10.4",
+          "action": "Mark the task Done. As Sofia view it from Brand A > Tasks & cases.",
+          "expected": "The same task is Done in both account and Operations views, with assignment and comment history."
+        }
+      ],
+      "after": "Keep the completed task. Do not create a duplicate to represent the handoff.",
+      "status": "Not run"
+    },
+    {
+      "id": "BN-11",
+      "title": "Resolve a customer case with a documented outcome",
+      "story": "A customer reports an incorrect bottle label after a brand has launched.",
+      "users": "Sofia then Marcus or Avery",
+      "priority": "P0",
+      "minutes": 7,
+      "preconditions": "Brand A is Active. Use a new support case; do not edit a customer case outside this run.",
+      "data": "Case = UAT-{RUN}-Wrong bottle label. Category Fulfillment. Priority High. Due D+7. Resolution UAT {RUN}: replacement label confirmed with retailer.",
+      "dependencies": [
+        "BN-05"
+      ],
+      "steps": [
+        {
+          "id": "BN-11.1",
+          "action": "As Sofia create an Open support case linked to Brand A and assigned to herself. Record CASE_A_ID.",
+          "expected": "A support case exists independently of the account\u2019s Active lifecycle."
+        },
+        {
+          "id": "BN-11.2",
+          "action": "Attempt to set Resolved while Resolution is blank.",
+          "expected": "The case cannot become Resolved; a resolution is required."
+        },
+        {
+          "id": "BN-11.3",
+          "action": "As Marcus reassign the case to Avery. As Avery set In Progress and enter the resolution.",
+          "expected": "The assigned member can process the case; ownership and resolution are saved."
+        },
+        {
+          "id": "BN-11.4",
+          "action": "Set Resolved, then Closed. Reopen the account profile as Sofia.",
+          "expected": "The closed case has its documented outcome and appears under the same CASE_A_ID. Brand A stays Active."
+        }
+      ],
+      "after": "Retain CASE_A_ID and the resolution for audit and reporting checks.",
+      "status": "Not run"
+    },
+    {
+      "id": "BN-12",
+      "title": "Keep linked cases and tasks on the same account",
+      "story": "An Account Manager links a task to the correct support case.",
+      "users": "Sofia",
+      "priority": "P0",
+      "minutes": 5,
+      "preconditions": "Brands A and B are owned by Sofia. Create an Open case on Brand B named UAT-{RUN}-Orchard stock review and record CASE_B_ID.",
+      "data": "Task = UAT-{RUN}-Request retailer evidence. Related account Brand A.",
+      "dependencies": [
+        "BN-06",
+        "BN-11"
+      ],
+      "steps": [
+        {
+          "id": "BN-12.1",
+          "action": "Create a task on Brand A and open Linked support case.",
+          "expected": "Only cases for Brand A are selectable; CASE_B_ID from Brand B is absent."
+        },
+        {
+          "id": "BN-12.2",
+          "action": "Choose CASE_A_ID if available and save. Otherwise create a fresh case for Brand A and use its ID.",
+          "expected": "The task links to a case on its own account."
+        },
+        {
+          "id": "BN-12.3",
+          "action": "Open the task\u2019s linked-case control and related-account control.",
+          "expected": "Both open the intended records; their IDs match the recorded links."
+        },
+        {
+          "id": "BN-12.4",
+          "action": "Edit the task to use Brand B, then inspect the linked-case field before saving.",
+          "expected": "The old Brand A case is cleared or unavailable. A mismatched account/case link cannot be saved."
+        }
+      ],
+      "after": "Record the final task and case IDs. Keep test cases rather than deleting business records.",
+      "status": "Not run"
+    },
+    {
+      "id": "BN-13",
+      "title": "Process a billing support request as Finance",
+      "story": "Finance investigates an invoice query without gaining general account-edit access.",
+      "users": "Taylor",
+      "priority": "P1",
+      "minutes": 5,
+      "preconditions": "Use Oak & Ember BR-001, which has a seeded mock invoice and is available to Finance.",
+      "data": "Case = UAT-{RUN}-Invoice breakdown request. Category Billing. Owner Taylor. Resolution UAT {RUN}: mock breakdown explained.",
+      "dependencies": [],
+      "steps": [
+        {
+          "id": "BN-13.1",
+          "action": "As Taylor open an authorized account and create a Billing case assigned to herself.",
+          "expected": "The case saves and appears in Finance\u2019s accessible support work."
+        },
+        {
+          "id": "BN-13.2",
+          "action": "Inspect the account\u2019s Edit control, sales pipeline and user administration access.",
+          "expected": "Finance can inspect authorized billing context but cannot edit general account details or administer users."
+        },
+        {
+          "id": "BN-13.3",
+          "action": "Add the resolution and resolve the billing case.",
+          "expected": "The billing workflow updates while the account lifecycle remains unchanged."
+        },
+        {
+          "id": "BN-13.4",
+          "action": "Preview Avery and search for this unassigned billing case.",
+          "expected": "Avery cannot access the case unless it is assigned to Avery; Finance access does not grant it to everyone."
+        }
+      ],
+      "after": "Keep the billing case and record its ID.",
+      "status": "Not run"
+    },
+    {
+      "id": "BN-14",
+      "title": "Record a mock invoice payment and reconcile totals",
+      "story": "Finance records a customer payment in the prototype.",
+      "users": "Taylor",
+      "priority": "P0",
+      "minutes": 6,
+      "preconditions": "Use Oak & Ember BR-001. Record the current Outstanding amount O and Paid in demo amount P before creating the test invoice.",
+      "data": "Invoice description UAT-{RUN}-Launch services. Amount USD 1375. Status Open. Due D+7. Reference UAT-{RUN}-PAYMENT.",
+      "dependencies": [],
+      "steps": [
+        {
+          "id": "BN-14.1",
+          "action": "Create the mock invoice using the specified values. Record INVOICE_A_ID.",
+          "expected": "The invoice is Open. Outstanding becomes O + 1375; Paid remains P."
+        },
+        {
+          "id": "BN-14.2",
+          "action": "Open Payment Follow-ups and search for the invoice.",
+          "expected": "The Open invoice is present and linked to the intended account."
+        },
+        {
+          "id": "BN-14.3",
+          "action": "Choose Record mock payment for INVOICE_A_ID.",
+          "expected": "Its status becomes Paid. Outstanding returns to O and Paid becomes P + 1375."
+        },
+        {
+          "id": "BN-14.4",
+          "action": "Revisit Payment Follow-ups and Finance Reports; reload the page.",
+          "expected": "The invoice leaves unpaid follow-ups and stays Paid after reload. No actual payment is taken."
+        }
+      ],
+      "after": "Retain the Paid invoice and before/after totals as evidence.",
+      "status": "Not run"
+    },
+    {
+      "id": "BN-15",
+      "title": "Combine account ownership with Finance access",
+      "story": "A colleague has two responsibilities without receiving unrestricted account-edit access.",
+      "users": "James for preparation, then Maya",
+      "priority": "P0",
+      "minutes": 5,
+      "preconditions": "As James assign Affiliate A to Maya. Brand A remains owned by Sofia and is authorized to Finance through a mock invoice, or use seeded Oak & Ember for the second account.",
+      "data": "Owned account = AFFILIATE_A_ID. Other finance account = BR-001 or a separately invoiced Brand A.",
+      "dependencies": [
+        "BN-08"
+      ],
+      "steps": [
+        {
+          "id": "BN-15.1",
+          "action": "As Maya open her dashboard and sidebar.",
+          "expected": "Account Manager and Finance capabilities appear together, including Billing."
+        },
+        {
+          "id": "BN-15.2",
+          "action": "Edit a note or description on her assigned Affiliate A.",
+          "expected": "The owned account accepts the change."
+        },
+        {
+          "id": "BN-15.3",
+          "action": "Open the other finance account and inspect Edit account.",
+          "expected": "Maya can read the finance-authorized account but cannot edit general details merely because she can access its billing."
+        },
+        {
+          "id": "BN-15.4",
+          "action": "Record a mock finance change on a test invoice if required, then switch to Sofia.",
+          "expected": "Financial screens are available to Maya but not Sofia. Role unions preserve financial restrictions for users without Finance."
+        }
+      ],
+      "after": "Leave Affiliate A assigned to Maya until BN-29, or record the owner if restoring it.",
+      "status": "Not run"
+    },
+    {
+      "id": "BN-16",
+      "title": "Give a stakeholder read-only visibility",
+      "story": "A stakeholder checks designated accounts without changing business records.",
+      "users": "Riley",
+      "priority": "P0",
+      "minutes": 4,
+      "preconditions": "Use the original Riley Brooks Viewer identity. Its designated seed accounts are BR-001, BR-003, AF-001 and AF-003.",
+      "data": "Use Oak & Ember BR-001 and a new UAT account outside those designated IDs. Restricted routes: #company/billing and #company/users-&-roles on the same Site URL.",
+      "dependencies": [
+        "BN-02"
+      ],
+      "steps": [
+        {
+          "id": "BN-16.1",
+          "action": "As Riley inspect the accessible directory and open Oak & Ember.",
+          "expected": "Only designated records are shown. The account is readable and Edit account is unavailable."
+        },
+        {
+          "id": "BN-16.2",
+          "action": "Inspect create, note, stage and approval controls where available.",
+          "expected": "Business changes cannot be submitted. Disabled controls do not count as a successful edit."
+        },
+        {
+          "id": "BN-16.3",
+          "action": "Search for the new UAT account and try the Billing and Users & Roles page URLs.",
+          "expected": "The outside account is absent; restricted pages show an unavailable view or redirect without exposing restricted content."
+        },
+        {
+          "id": "BN-16.4",
+          "action": "Return to the dashboard and inspect accessible reports.",
+          "expected": "Read-only reporting remains usable. Personal view preferences may still be customizable."
+        }
+      ],
+      "after": "No business data should have changed.",
+      "status": "Not run"
+    },
+    {
+      "id": "BN-17",
+      "title": "Save a personal working list",
+      "story": "An Account Manager saves the account list used for daily follow-ups.",
+      "users": "Sofia then James",
+      "priority": "P1",
+      "minutes": 5,
+      "preconditions": "Sofia has at least one account with the run name. Use All Accounts or the brand directory; a My accounts label may be shown for Sofia.",
+      "data": "View name UAT-{RUN}-My launch accounts. Query UAT-{RUN}. Hide Email or Shopify where Columns offers it.",
+      "dependencies": [
+        "BN-02"
+      ],
+      "steps": [
+        {
+          "id": "BN-17.1",
+          "action": "As Sofia filter to the run\u2019s accounts, choose a sort order and change visible columns.",
+          "expected": "Rows and columns reflect the selected settings within Sofia\u2019s permitted scope."
+        },
+        {
+          "id": "BN-17.2",
+          "action": "Save the view as Personal. Reload and reopen the same directory.",
+          "expected": "The saved view, filters and column choices are restored."
+        },
+        {
+          "id": "BN-17.3",
+          "action": "Switch to James and inspect saved views in the same module.",
+          "expected": "Sofia\u2019s personal view is not offered to James."
+        },
+        {
+          "id": "BN-17.4",
+          "action": "Return to Sofia, reset the presentation, then reapply the saved view.",
+          "expected": "Reset changes the presentation; reapplying the saved view restores it without changing accounts."
+        }
+      ],
+      "after": "Retain the personal view for later runs or remove only that view.",
+      "status": "Not run"
+    },
+    {
+      "id": "BN-18",
+      "title": "Publish a shared team view without widening access",
+      "story": "An administrator gives the team a consistent launch-review presentation.",
+      "users": "Olivia then Sofia",
+      "priority": "P1",
+      "minutes": 5,
+      "preconditions": "At least Brand A exists and is owned by Sofia.",
+      "data": "Shared view UAT-{RUN}-Launch review. Module All Accounts. Query UAT-{RUN}.",
+      "dependencies": [
+        "BN-02"
+      ],
+      "steps": [
+        {
+          "id": "BN-18.1",
+          "action": "As Olivia filter All Accounts and save the presentation as Shared.",
+          "expected": "The shared view is saved and is listed in Configuration > Shared views."
+        },
+        {
+          "id": "BN-18.2",
+          "action": "As Sofia open the same module and apply that shared view.",
+          "expected": "The view is available but its rows still respect Sofia\u2019s record scope."
+        },
+        {
+          "id": "BN-18.3",
+          "action": "Inspect Save view visibility choices and shared-view deletion as Sofia.",
+          "expected": "Sofia cannot create or remove company-wide shared views; personal saving remains available."
+        },
+        {
+          "id": "BN-18.4",
+          "action": "As Olivia remove the test shared view from Configuration.",
+          "expected": "The shared presentation is removed; the underlying accounts remain intact."
+        }
+      ],
+      "after": "Remove only the test shared view. Keep the accounts.",
+      "status": "Not run"
+    },
+    {
+      "id": "BN-19",
+      "title": "Add a business field while protecting financial values",
+      "story": "Admin adds a relationship field and a Finance-restricted commercial value.",
+      "users": "Olivia, Sofia and Taylor",
+      "priority": "P0",
+      "minutes": 7,
+      "preconditions": "Use Brand A, owned by Sofia. Use BR-001 for the financial value so Taylor can access it.",
+      "data": "General field UAT {RUN} relationship tier: Select, Corporate Brand, Standard and Strategic. Financial field UAT {RUN} commercial fee: Text, All accounts, Finance restricted.",
+      "dependencies": [
+        "BN-02"
+      ],
+      "steps": [
+        {
+          "id": "BN-19.1",
+          "action": "As Olivia create both fields in Configuration > Account fields.",
+          "expected": "Both fields are added with the chosen scope and sensitivity."
+        },
+        {
+          "id": "BN-19.2",
+          "action": "Edit Brand A and set the general field to Strategic. On BR-001 set the restricted fee to 275.",
+          "expected": "Values save on the appropriate records without changing ownership or lifecycle."
+        },
+        {
+          "id": "BN-19.3",
+          "action": "As Sofia inspect her Brand A form and then a permitted non-financial account view.",
+          "expected": "The general field is visible. Finance-restricted fields and values are not exposed."
+        },
+        {
+          "id": "BN-19.4",
+          "action": "As Taylor inspect BR-001.",
+          "expected": "The authorized financial value is visible, while general account-edit access remains restricted."
+        },
+        {
+          "id": "BN-19.5",
+          "action": "As Olivia reload and verify both values.",
+          "expected": "The field definitions and values persist locally. A Supplier or Affiliate form does not get a Corporate Brand-only field."
+        }
+      ],
+      "after": "Retain the fields with the run prefix. There is no need to delete fields to repeat the test.",
+      "status": "Not run"
+    },
+    {
+      "id": "BN-20",
+      "title": "Configure a pipeline without overriding protected stages",
+      "story": "Admin adds a useful sales stage while the core process stays protected.",
+      "users": "Olivia then James",
+      "priority": "P0",
+      "minutes": 6,
+      "preconditions": "Affiliate A exists. If it is assigned to Maya, use James for pipeline editing.",
+      "data": "Additional affiliate stage UAT {RUN} Partner review.",
+      "dependencies": [
+        "BN-08"
+      ],
+      "steps": [
+        {
+          "id": "BN-20.1",
+          "action": "As Olivia open Configuration > Pipelines and inspect core affiliate stages and six-check protection text.",
+          "expected": "Core stages and activation rules are protected; there is no unrestricted workflow builder."
+        },
+        {
+          "id": "BN-20.2",
+          "action": "Add the extra affiliate stage. As James move Affiliate A into it using the list selector.",
+          "expected": "The configured stage is available and the same account moves into it."
+        },
+        {
+          "id": "BN-20.3",
+          "action": "As James inspect Configuration access.",
+          "expected": "Sales cannot change company-wide pipeline configuration."
+        },
+        {
+          "id": "BN-20.4",
+          "action": "As Olivia try to remove the added stage while Affiliate A uses it.",
+          "expected": "Removal is rejected; the record is not orphaned."
+        },
+        {
+          "id": "BN-20.5",
+          "action": "As James return Affiliate A to its original stage. As Olivia remove the extra stage.",
+          "expected": "The now-unused extra stage can be removed. Core stages remain unchanged."
+        }
+      ],
+      "after": "Restore Affiliate A\u2019s starting stage and remove the test extra stage.",
+      "status": "Not run"
+    },
+    {
+      "id": "BN-21",
+      "title": "Assign fixed roles to a colleague",
+      "story": "Admin adds a fictional user, combines roles and prevents an unassigned user.",
+      "users": "Olivia",
+      "priority": "P0",
+      "minutes": 6,
+      "preconditions": "Keep the original eight identities and Olivia\u2019s System Admin role intact.",
+      "data": "New user UAT {RUN} Test Colleague; colleague-{RUN}@team.example.",
+      "dependencies": [],
+      "steps": [
+        {
+          "id": "BN-21.1",
+          "action": "Open Users & Roles and add the fictional colleague as Viewer.",
+          "expected": "The user appears in the local demo list. No email invitation is sent."
+        },
+        {
+          "id": "BN-21.2",
+          "action": "Edit the colleague and uncheck every role.",
+          "expected": "Saving zero roles is disabled or rejected."
+        },
+        {
+          "id": "BN-21.3",
+          "action": "Assign Account Manager and Finance, save, and preview the new colleague.",
+          "expected": "The header and modules reflect both fixed roles; capabilities are not individually editable."
+        },
+        {
+          "id": "BN-21.4",
+          "action": "Return to Olivia and deactivate only the test colleague.",
+          "expected": "The inactive colleague is no longer selectable as an active demo preview."
+        },
+        {
+          "id": "BN-21.5",
+          "action": "Confirm Olivia and the original eight identities are unchanged.",
+          "expected": "The administrator remains active and the original demo roles still work."
+        }
+      ],
+      "after": "Leave the test colleague inactive. Do not deactivate the original demo users.",
+      "status": "Not run"
+    },
+    {
+      "id": "BN-22",
+      "title": "Avoid duplicate BNX accounts",
+      "story": "Sales recognizes an existing organization before creating another CRM record.",
+      "users": "James then Olivia",
+      "priority": "P0",
+      "minutes": 7,
+      "preconditions": "Use existing Affiliate The Bourbon Collective AF-001 with verified ID BNX-AF-001. This test does not require unused reference BNX-AF-901.",
+      "data": "Draft name initially The Bourbon Collective. Email duplicate-{RUN}@affiliates.example. Contact Quinn Hale.",
+      "dependencies": [],
+      "steps": [
+        {
+          "id": "BN-22.1",
+          "action": "As James open New affiliate and enter the exact existing account name.",
+          "expected": "A possible duplicate warning appears. A warning is distinct from a confirmed-ID block."
+        },
+        {
+          "id": "BN-22.2",
+          "action": "Change to a unique draft name and enter the existing account email instead.",
+          "expected": "A possible email duplicate warning appears."
+        },
+        {
+          "id": "BN-22.3",
+          "action": "Use a unique name/email but set BNX ID to BNX-AF-001, complete required fields and submit.",
+          "expected": "Saving is blocked as a confirmed duplicate. No new account is created and the form stays available."
+        },
+        {
+          "id": "BN-22.4",
+          "action": "Cancel. As Olivia edit the original AF-001 and inspect its verified BNX identifier.",
+          "expected": "The verified ID is protected from change. The original account still has the same ID and relationships."
+        },
+        {
+          "id": "BN-22.5",
+          "action": "Open Audit Log and locate the rejected save.",
+          "expected": "A Denied entry identifies the actor and duplicate reason."
+        }
+      ],
+      "after": "Cancel the duplicate draft. Retain the denied audit event.",
+      "status": "Not run"
+    },
+    {
+      "id": "BN-23",
+      "title": "Explore provisional Suppliers and barrel links",
+      "story": "Operations explores a possible supplier model without treating it as an approved business relationship.",
+      "users": "Marcus",
+      "priority": "P1",
+      "minutes": 6,
+      "preconditions": "Affiliate A is Live. Use existing mock supplier Blue Ridge Cooperage SUP-001 and retailer Oak Street Liquors.",
+      "data": "Barrel UAT-{RUN}-Sample allocation. Stock 120. Sales 0. Status Reserved.",
+      "dependencies": [
+        "BN-08"
+      ],
+      "steps": [
+        {
+          "id": "BN-23.1",
+          "action": "Open Suppliers (provisional), a supplier profile and its create form. Cancel the form.",
+          "expected": "Each explains that supplier relationships with brands and affiliates are still to be defined and all records are mocked."
+        },
+        {
+          "id": "BN-23.2",
+          "action": "Open Barrel Management and create the test barrel with Affiliate A, the mock supplier and existing retailer.",
+          "expected": "The links save against existing records and are presented as illustrative supplier links."
+        },
+        {
+          "id": "BN-23.3",
+          "action": "Inspect the barrel in table and board views, and from the related account.",
+          "expected": "Its ID and selected relationships are consistent across views."
+        },
+        {
+          "id": "BN-23.4",
+          "action": "Edit Stock to -1 and attempt saving. Restore 120 after the attempt.",
+          "expected": "Negative stock is rejected by the form or application. No invalid quantity is saved."
+        }
+      ],
+      "after": "Retain the exploratory record; this test does not approve the Supplier business model.",
+      "status": "Not run"
+    },
+    {
+      "id": "BN-24",
+      "title": "Review a critical action and a denied change",
+      "story": "Admin needs to understand who changed a record and which actions were rejected.",
+      "users": "Olivia",
+      "priority": "P0",
+      "minutes": 4,
+      "preconditions": "BN-05 has produced an approval and BN-22 a duplicate-save denial. Do not expect a disabled button alone to create a denied audit event.",
+      "data": "Use BRAND_A_ID and the run prefix to find allowed changes; use actor James and the duplicate reason for the denial. Restricted route: #company/audit-log on the same Site URL.",
+      "dependencies": [
+        "BN-05",
+        "BN-22"
+      ],
+      "steps": [
+        {
+          "id": "BN-24.1",
+          "action": "Open Audit Log and filter Allowed. Find Brand A\u2019s activation change.",
+          "expected": "The record ID, Marcus as actor and an appropriate timestamp/action are recorded."
+        },
+        {
+          "id": "BN-24.2",
+          "action": "Filter Denied and find the rejected BNX duplicate save.",
+          "expected": "James is recorded as actor with a duplicate-related reason; the save did not change the business record."
+        },
+        {
+          "id": "BN-24.3",
+          "action": "Reload and reapply the filters.",
+          "expected": "Audit entries persist in this browser."
+        },
+        {
+          "id": "BN-24.4",
+          "action": "Preview Sofia or Riley and try the Audit Log URL.",
+          "expected": "Restricted users do not receive the central audit contents. Record-level permitted history remains separate."
+        }
+      ],
+      "after": "Keep the events as evidence. Browser-local logs are not tamper-proof production audit records.",
+      "status": "Not run"
+    },
+    {
+      "id": "BN-25",
+      "title": "Find the same account across views and export the current list",
+      "story": "A manager locates an account quickly and shares a filtered working snapshot.",
+      "users": "James then Olivia",
+      "priority": "P1",
+      "minutes": 5,
+      "preconditions": "Brand A and Affiliate A exist. Download permission may be handled by the browser.",
+      "data": "Search UAT-{RUN}. Record the IDs of visible matching accounts before export.",
+      "dependencies": [
+        "BN-02",
+        "BN-08"
+      ],
+      "steps": [
+        {
+          "id": "BN-25.1",
+          "action": "Use global search to find Brand A by its name or ID and open it.",
+          "expected": "The intended existing account opens, rather than a duplicate or unrelated record."
+        },
+        {
+          "id": "BN-25.2",
+          "action": "Open All Accounts, search the run prefix and apply a type/owner filter.",
+          "expected": "The list contains only matching accessible records; the record IDs remain consistent."
+        },
+        {
+          "id": "BN-25.3",
+          "action": "Export the current account list and open the CSV in a spreadsheet or text editor.",
+          "expected": "Exported account rows match the active filtered list, including rows beyond a single visible page. Header/data columns align."
+        },
+        {
+          "id": "BN-25.4",
+          "action": "As Olivia review current report totals before and after reopening the same records.",
+          "expected": "Merely viewing records does not increase totals. Historical sample charts remain labelled illustrative."
+        }
+      ],
+      "after": "Keep the CSV with the test evidence. Treat a stale activity label as a separate observation, not proof of duplication.",
+      "status": "Not run"
+    },
+    {
+      "id": "BN-26",
+      "title": "Schedule a meeting and follow-up",
+      "story": "An Account Manager records the next customer conversation and its outcome.",
+      "users": "Sofia",
+      "priority": "P1",
+      "minutes": 5,
+      "preconditions": "Brand A is owned by Sofia. Choose D+7 at 14:00 local time and note its calendar month.",
+      "data": "Meeting UAT-{RUN}-Harbor launch review. Follow-up UAT-{RUN}-Confirm launch assets. Owner Sofia.",
+      "dependencies": [
+        "BN-02"
+      ],
+      "steps": [
+        {
+          "id": "BN-26.1",
+          "action": "Create the Meeting activity linked to Brand A at the chosen time.",
+          "expected": "The activity saves as Scheduled with the intended account and owner."
+        },
+        {
+          "id": "BN-26.2",
+          "action": "Open Calendar and select the chosen month. Open the meeting from its day.",
+          "expected": "The title appears on the correct day and opens the same activity."
+        },
+        {
+          "id": "BN-26.3",
+          "action": "Add an outcome note, mark the meeting Done, then create the Follow-up for the next day.",
+          "expected": "The meeting outcome and scheduled follow-up are separate records with the correct account link."
+        },
+        {
+          "id": "BN-26.4",
+          "action": "Open Follow-ups and reload.",
+          "expected": "The follow-up persists. No invitation, external calendar event or OS notification is expected."
+        }
+      ],
+      "after": "Record both activity IDs if visible; retain the mock events.",
+      "status": "Not run"
+    },
+    {
+      "id": "BN-27",
+      "title": "Use the CRM with a narrow screen and keyboard",
+      "story": "A team member works from a smaller screen without losing navigation or record access.",
+      "users": "Sofia then Riley",
+      "priority": "P2",
+      "minutes": 5,
+      "preconditions": "Use a desktop browser resized to approximately 390 to 600 pixels wide. Keep the same test profile and origin.",
+      "data": "Use Brand A and the demo role switcher.",
+      "dependencies": [
+        "BN-02"
+      ],
+      "steps": [
+        {
+          "id": "BN-27.1",
+          "action": "Open and close the responsive navigation, then switch workspaces.",
+          "expected": "Navigation is usable, readable and does not cover the active content after selection."
+        },
+        {
+          "id": "BN-27.2",
+          "action": "Use Tab and Enter to open an account, navigate its sections, and close its dialog.",
+          "expected": "Keyboard focus is visible and the account remains accessible. Record any inaccessible control as a failure."
+        },
+        {
+          "id": "BN-27.3",
+          "action": "Inspect the role switcher, saved-view controls and table scrolling.",
+          "expected": "Controls remain reachable; horizontal scrolling does not make the entire page unusable."
+        },
+        {
+          "id": "BN-27.4",
+          "action": "Preview Riley on the narrow screen.",
+          "expected": "Read-only restrictions still apply; responsive presentation does not expose new edit actions."
+        }
+      ],
+      "after": "Restore the original window size and role. This is a basic usability check, not a full accessibility certification.",
+      "status": "Not run"
+    },
+    {
+      "id": "BN-28",
+      "title": "Keep attachments and integrations clearly mocked",
+      "story": "An Account Manager adds a document reference without expecting an upload or live connection.",
+      "users": "Sofia",
+      "priority": "P1",
+      "minutes": 4,
+      "preconditions": "Create a harmless local text file named UAT-{RUN}-launch-notes.txt containing fictional notes only. Brand A is owned by Sofia.",
+      "data": "Use the local file as a filename reference; do not use confidential documents or real credentials.",
+      "dependencies": [
+        "BN-02"
+      ],
+      "steps": [
+        {
+          "id": "BN-28.1",
+          "action": "In Brand A > Notes & files, select the local test file.",
+          "expected": "Only a filename reference is added; the UI explains that contents are not uploaded."
+        },
+        {
+          "id": "BN-28.2",
+          "action": "Reload and inspect the attachment list.",
+          "expected": "The filename persists locally. No download of uploaded file content is promised."
+        },
+        {
+          "id": "BN-28.3",
+          "action": "Inspect the mock Shopify status, onboarding verification and billing language.",
+          "expected": "These are explicitly simulated states. No real Shopify, Stripe or BNX account connection is required."
+        },
+        {
+          "id": "BN-28.4",
+          "action": "Return to the account and confirm the note/relationship data remains intact.",
+          "expected": "Adding a filename reference has not changed the account lifecycle or created a real transaction."
+        }
+      ],
+      "after": "Retain only the harmless filename reference as run evidence.",
+      "status": "Not run"
+    },
+    {
+      "id": "BN-29",
+      "title": "Reassign an account without duplicating its operations",
+      "story": "Sales hands a relationship to a different Account Manager while delivery work continues.",
+      "users": "James, Sofia, Maya and Marcus",
+      "priority": "P0",
+      "minutes": 6,
+      "preconditions": "Brand A is owned by Sofia and has TASK_A_ID and CASE_A_ID. Record both IDs and their current assigned owners. Do this after all Sofia-dependent scenarios.",
+      "data": "New Account Manager Maya Robinson. Do not change task/case owners during this test.",
+      "dependencies": [
+        "BN-10",
+        "BN-11"
+      ],
+      "steps": [
+        {
+          "id": "BN-29.1",
+          "action": "As James use Team Assignments to assign Brand A to Maya.",
+          "expected": "The account keeps BRAND_A_ID and its history; no second record is created."
+        },
+        {
+          "id": "BN-29.2",
+          "action": "As Maya open Brand A and its account work.",
+          "expected": "Maya can manage the newly assigned relationship; existing linked work retains its IDs."
+        },
+        {
+          "id": "BN-29.3",
+          "action": "As Sofia search for Brand A.",
+          "expected": "The former Account Manager loses access to that relationship under her single role."
+        },
+        {
+          "id": "BN-29.4",
+          "action": "As Marcus open TASK_A_ID and CASE_A_ID in Operations.",
+          "expected": "Their account link is still BRAND_A_ID, and their assigned owners and workflow states have not been changed by account reassignment."
+        },
+        {
+          "id": "BN-29.5",
+          "action": "As James restore Brand A to Sofia. As Olivia review the account changes in Audit Log.",
+          "expected": "Sofia can access it again. The reassignment events are available in the central audit log."
+        }
+      ],
+      "after": "Restore Sofia as Account Manager. Do not reassign or recreate the operational records.",
+      "status": "Not run"
+    },
+    {
+      "id": "BN-30",
+      "title": "Preserve a run and reset only a disposable test profile",
+      "story": "A tester repeats a run without losing normal working records.",
+      "users": "Olivia",
+      "priority": "P2",
+      "minutes": 5,
+      "preconditions": "Run only in a dedicated disposable test profile. Finish evidence capture first. If this is the normal working profile, mark this case Not applicable and do not reset.",
+      "data": "Use Brand A, the paid test invoice and a saved personal view as persistence samples. Use a new RUN suffix after a reset.",
+      "dependencies": [
+        "BN-14",
+        "BN-17"
+      ],
+      "steps": [
+        {
+          "id": "BN-30.1",
+          "action": "Close and reopen the CRM at the exact same origin in the same profile.",
+          "expected": "Created records, the payment state and saved views remain available; opening the app has not reset them."
+        },
+        {
+          "id": "BN-30.2",
+          "action": "Open a separate fresh test browser profile, signing in to the Site normally if needed.",
+          "expected": "It does not automatically receive this profile\u2019s local CRM edits. Role switching in one tab is not multi-user synchronization."
+        },
+        {
+          "id": "BN-30.3",
+          "action": "In the disposable original test profile, choose Settings > Reset demo data and first Cancel.",
+          "expected": "Cancelling preserves the test records."
+        },
+        {
+          "id": "BN-30.4",
+          "action": "Only after confirming this is disposable, repeat reset and confirm.",
+          "expected": "Sample business records are restored and run-created records/views are removed. A reset audit event is recorded; prior audit history may be retained."
+        },
+        {
+          "id": "BN-30.5",
+          "action": "Record the reset result in the workbook and start any repeat run with a new RUN value.",
+          "expected": "The external test evidence remains saved; no normal working profile has been reset."
+        }
+      ],
+      "after": "This is optional cleanup. Do not run it before dependent scripts or evidence capture.",
+      "status": "Not run"
+    }
+  ]
+}

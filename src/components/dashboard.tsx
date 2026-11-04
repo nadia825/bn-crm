@@ -53,7 +53,7 @@ type Props = {
   newWork: () => void;
 };
 export function Dashboard({ navigate, openAccount, openItem, newWork }: Props) {
-  const { data, setData } = useStore();
+  const { data, setData } = useStore((s) => ({ data: s.data, setData: s.setData }));
   const range = "Current snapshot";
   const brands = data.accounts.filter((a) => a.type === "Corporate Brand"),
     affiliates = data.accounts.filter((a) => a.type === "Affiliate"),
@@ -249,7 +249,7 @@ export function Dashboard({ navigate, openAccount, openItem, newWork }: Props) {
               ).length
             }
           </strong>
-          active suppliers
+          mock active suppliers (provisional)
           <ArrowRight size={13} />
         </button>
         <button onClick={() => navigate("Brand Onboarding")}>
@@ -393,8 +393,8 @@ export function Dashboard({ navigate, openAccount, openItem, newWork }: Props) {
               <button
                 className="check-circle"
                 aria-label={`Complete ${t.title}`}
-                onClick={() => {
-                  setData((d) => ({
+                onClick={async () => {
+                  if (!(await setData((d) => ({
                     ...d,
                     tasks: d.tasks.map((x) =>
                       x.id === t.id
@@ -408,7 +408,7 @@ export function Dashboard({ navigate, openAccount, openItem, newWork }: Props) {
                           }
                         : x,
                     ),
-                  }));
+                  })))) return;
                   toast.success("Task completed");
                 }}
               >

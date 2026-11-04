@@ -27,6 +27,7 @@ export function ViewControls({
   selectedColumns,
   onColumns,
   defaults,
+  requiredColumns = [],
 }: {
   module: string;
   snapshot: Snapshot;
@@ -35,8 +36,9 @@ export function ViewControls({
   selectedColumns?: string[];
   onColumns?: (s: string[]) => void;
   defaults: Snapshot;
+  requiredColumns?: string[];
 }) {
-  const { data, setData, actor, can, ready } = useStore();
+  const { data, setData, actor, can, ready } = useStore((s) => ({ data: s.data, setData: s.setData, actor: s.actor, can: s.can, ready: s.ready }));
   const [active, setActive] = useState("");
   const [dialog, setDialog] = useState(false);
   const [columnDialog, setColumnDialog] = useState(false);
@@ -75,7 +77,7 @@ export function ViewControls({
           <Bookmark size={14} />
           Views
         </span>
-        <select
+        <Select
           className="input select"
           aria-label="Saved view"
           value={views.some((v) => v.id === active) ? active : ""}
@@ -88,7 +90,7 @@ export function ViewControls({
               {v.visibility === "Shared" ? " · Shared" : " · Personal"}
             </option>
           ))}
-        </select>
+        </Select>
         <Button
           variant="ghost"
           size="sm"
@@ -123,9 +125,9 @@ export function ViewControls({
               views.find((v) => v.id === active)?.visibility === "Shared" &&
               !can("views.shared")
             }
-            onClick={() => {
+            onClick={async () => {
               if (
-                setData((d) => ({
+                await setData((d) => ({
                   ...d,
                   views: d.views.filter((v) => v.id !== active),
                 }))
@@ -172,10 +174,10 @@ export function ViewControls({
             </Button>
             <Button
               disabled={!name.trim()}
-              onClick={() => {
+              onClick={async () => {
                 const id = crypto.randomUUID();
                 if (
-                  setData((d) => ({
+                  await setData((d) => ({
                     ...d,
                     views: [
                       ...d.views,
@@ -223,7 +225,9 @@ export function ViewControls({
                   type="checkbox"
                   checked={selectedColumns?.includes(c)}
                   disabled={
-                    selectedColumns?.length === 1 && selectedColumns.includes(c)
+                    requiredColumns.includes(c) ||
+                    (selectedColumns?.length === 1 &&
+                      selectedColumns.includes(c))
                   }
                   onChange={(e) =>
                     onColumns?.(

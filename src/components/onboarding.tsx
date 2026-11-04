@@ -27,7 +27,7 @@ export function Onboarding({
   approvalsOnly?: boolean;
   onReview?: (a: Account) => void;
 }) {
-  const { data, setData, can, canCheck } = useStore();
+  const { data, setData, can, canCheck } = useStore((s) => ({ data: s.data, setData: s.setData, can: s.can, canCheck: s.canCheck }));
   const allBrands = data.accounts.filter((a) => a.type === "Corporate Brand");
   const brands = approvalsOnly
     ? allBrands.filter((a) => a.approval === "Pending approval")
@@ -74,8 +74,8 @@ export function Onboarding({
     );
   const count = a.checks.filter(Boolean).length,
     all = count === 6;
-  const update = (patch: Partial<typeof a>, text: string) =>
-    setData((d) => ({
+  const update = async (patch: Partial<typeof a>, text: string) =>
+    await setData((d) => ({
       ...d,
       accounts: d.accounts.map((x) =>
         x.id === a.id
@@ -87,11 +87,12 @@ export function Onboarding({
     if (!all) return;
     setVerifying(true);
     await new Promise((r) => setTimeout(r, 1200));
-    update(
+    const saved = await update(
       { verification: "Verified", approval: "Not submitted" },
       "All six setup requirements passed simulated verification.",
     );
     setVerifying(false);
+    if (!saved) return;
     toast.success("Simulated verification passed");
   };
   const step =
@@ -246,17 +247,17 @@ export function Onboarding({
                       a.approval === "Pending approval" ||
                       verifying
                     }
-                    onChange={(e) => {
+                    onChange={async (e) => {
                       const checks = [...a.checks];
                       checks[i] = e.target.checked;
-                      update(
+                      if (!(await update(
                         {
                           checks,
                           verification: "Pending",
                           approval: "Not submitted",
                         },
                         `${req} ${e.target.checked ? "completed" : "reopened"}.`,
-                      );
+                      ))) return;
                     }}
                   />
                   <span>
@@ -375,15 +376,15 @@ export function Onboarding({
                     <Button
                       disabled={!can("onboarding.approve", a)}
                       variant="outline"
-                      onClick={() => {
+                      onClick={async () => {
                         if (!reason.trim()) {
                           toast.error("Add a reason before rejecting.");
                           return;
                         }
-                        update(
+                        if (!(await update(
                           { approval: "Rejected", verification: "Pending" },
                           `Operations rejected activation: ${reason.trim()}`,
-                        );
+                        ))) return;
                         setReason("");
                         toast.info(
                           "Activation rejected. Revise setup and verify again.",
@@ -394,16 +395,16 @@ export function Onboarding({
                     </Button>
                     <Button
                       disabled={!can("onboarding.approve", a)}
-                      onClick={() => {
+                      onClick={async () => {
                         if (!all || a.verification !== "Verified") return;
-                        update(
+                        if (!(await update(
                           {
                             approval: "Approved",
                             status: "Active",
                             stage: "Active",
                           },
                           `Operations approved activation.${reason.trim() ? " " + reason.trim() : ""}`,
-                        );
+                        ))) return;
                         toast.success(`${a.name} is now active`);
                       }}
                     >
@@ -427,11 +428,11 @@ export function Onboarding({
                     a.verification !== "Verified" ||
                     verifying
                   }
-                  onClick={() => {
-                    update(
+                  onClick={async () => {
+                    if (!(await update(
                       { approval: "Pending approval" },
                       "Submitted brand activation for Operations approval.",
-                    );
+                    ))) return;
                     toast.success("Submitted for Operations approval");
                   }}
                 >

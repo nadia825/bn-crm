@@ -1,413 +1,72 @@
 "use client";
+import { SupplierProvisionalNotice } from "./supplier-provisional";
 import { useState } from "react";
 import {
   Building2,
-  Users,
   Plus,
   Mail,
-  Globe,
-  ExternalLink,
   MessageSquare,
   Paperclip,
   Pencil,
   Clock3,
   ArrowRight,
-  ChevronLeft,
+  ArrowUpRight,
+  Check,
+  Circle,
   ChevronRight,
-  Download,
 } from "lucide-react";
-import {
-  type Account,
-  type WorkItem,
-  event,
-  dateLabel,
-  managers,
-} from "@/lib/data";
+import { type Account, type WorkItem, event, dateLabel } from "@/lib/data";
 import { useStore } from "@/lib/store";
 import { Button } from "./ui/button";
-import { Card, Badge, Input, Select, Textarea } from "./ui/primitives";
+import { Card, Badge, Textarea, Select } from "./ui/primitives";
 import {
   Dialog,
   DialogContent,
   DialogTitle,
   DialogDescription,
 } from "./ui/dialog";
-import {
-  AccountLogo,
-  Avatar,
-  EmptyState,
-  SectionTitle,
-  SortHead,
-  Toolbar,
-} from "./shared";
-import { ViewControls, ColumnVisibility } from "./saved-views";
+import { AccountLogo, Avatar } from "./shared";
 import { canPage } from "@/lib/access";
+import { accountNextStep, type AccountSection } from "@/lib/account-directory";
 import { toast } from "sonner";
-export function Accounts({
-  openAccount,
-  create,
-  accountType,
-}: {
-  openAccount: (a: Account) => void;
-  create: () => void;
-  accountType?: Account["type"];
-}) {
-  const { data, can, actor } = useStore();
-  const allAccounts = data.accounts.filter((a) =>
-    accountType ? a.type === accountType : true,
-  );
-  const allLabel =
-    accountType === "Corporate Brand"
-      ? "All brands"
-      : accountType === "Affiliate"
-        ? "All affiliates"
-        : "All accounts";
-  const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState(allLabel);
-  const [manager, setManager] = useState("All managers");
-  const [sort, setSort] = useState("name");
-  const [asc, setAsc] = useState(true);
-  const [page, setPage] = useState(0);
-  const columns = [
-    "Account",
-    "Type",
-    "Manager",
-    "Email",
-    "Status",
-    "Retailer",
-    "Shopify",
-    "Activity",
-    "Open",
-  ];
-  const [selectedColumns, setSelectedColumns] = useState(columns);
-  const module = `accounts-${accountType || "all"}`.replace(/[^a-z0-9-]/gi, "");
-  const applyView = (v: Record<string, unknown>) => {
-    setQuery(String(v.query || ""));
-    setFilter(String(v.filter || allLabel));
-    setManager(String(v.manager || "All managers"));
-    setSort(String(v.sort || "name"));
-    setAsc(v.asc !== false);
-    setPage(0);
-  };
-  const rows = allAccounts
-    .filter(
-      (a) =>
-        (filter === allLabel || a.type === filter || a.status === filter) &&
-        (manager === "All managers" || a.manager === manager) &&
-        `${a.name} ${a.email} ${a.retailers.join(" ")}`
-          .toLowerCase()
-          .includes(query.toLowerCase()),
-    )
-    .sort(
-      (a, b) =>
-        String(a[sort as keyof Account]).localeCompare(
-          String(b[sort as keyof Account]),
-        ) * (asc ? 1 : -1),
-    );
-  const doSort = (key: string) => {
-    setAsc(sort === key ? !asc : true);
-    setSort(key);
-  };
-  const pages = Math.max(1, Math.ceil(rows.length / 10));
-  const current = Math.min(page, pages - 1);
-  return (
-    <>
-      <SectionTitle
-        title={
-          accountType === "Corporate Brand"
-            ? "Brand accounts"
-            : accountType === "Affiliate"
-              ? "Affiliate accounts"
-              : "Accounts"
-        }
-        subtitle={`${allAccounts.length} ${accountType === "Corporate Brand" ? "corporate brands" : accountType === "Affiliate" ? "affiliates" : "accounts"} · Connected to shared tasks, cases, and contacts.`}
-      >
-        <Button variant="outline" onClick={() => exportCSV(rows)}>
-          {" "}
-          <Download size={15} />
-          Export
-        </Button>
-        <Button
-          disabled={
-            !can("accounts.create", {
-              type: accountType || "Corporate Brand",
-              manager: actor.name,
-            })
-          }
-          onClick={create}
-        >
-          <Plus size={16} />
-          {accountType === "Corporate Brand"
-            ? "New brand"
-            : accountType === "Affiliate"
-              ? "New affiliate"
-              : "New account"}
-        </Button>
-      </SectionTitle>
-      {!accountType && (
-        <div className="account-summary">
-          <button
-            className={filter === "All accounts" ? "active" : ""}
-            onClick={() => {
-              setFilter("All accounts");
-              setPage(0);
-            }}
-          >
-            All accounts <span>{allAccounts.length}</span>
-          </button>
-          <button
-            className={filter === "Corporate Brand" ? "active" : ""}
-            onClick={() => {
-              setFilter("Corporate Brand");
-              setPage(0);
-            }}
-          >
-            <Building2 size={15} />
-            Corporate brands{" "}
-            <span>
-              {allAccounts.filter((a) => a.type === "Corporate Brand").length}
-            </span>
-          </button>
-          <button
-            className={filter === "Affiliate" ? "active" : ""}
-            onClick={() => {
-              setFilter("Affiliate");
-              setPage(0);
-            }}
-          >
-            <Users size={15} />
-            Affiliates{" "}
-            <span>
-              {allAccounts.filter((a) => a.type === "Affiliate").length}
-            </span>
-          </button>
-          <button
-            className={filter === "Supplier" ? "active" : ""}
-            onClick={() => {
-              setFilter("Supplier");
-              setPage(0);
-            }}
-          >
-            Suppliers{" "}
-            <span>
-              {allAccounts.filter((a) => a.type === "Supplier").length}
-            </span>
-          </button>
-        </div>
-      )}
-      <ViewControls
-        module={module}
-        snapshot={{ query, filter, manager, sort, asc }}
-        defaults={{ filter: allLabel, sort: "name", asc: true, columns }}
-        onApply={applyView}
-        columns={columns}
-        selectedColumns={selectedColumns}
-        onColumns={setSelectedColumns}
-      />
-      <ColumnVisibility
-        module={module}
-        columns={columns}
-        selected={selectedColumns}
-      />
-      <Card data-view-table={module}>
-        <Toolbar
-          query={query}
-          setQuery={(s) => {
-            setQuery(s);
-            setPage(0);
-          }}
-          manager={manager}
-          setManager={(s) => {
-            setManager(s);
-            setPage(0);
-          }}
-          filter={filter}
-          setFilter={(s) => {
-            setFilter(s);
-            setPage(0);
-          }}
-          filterOptions={[
-            allLabel,
-            ...(!accountType
-              ? ["Corporate Brand", "Affiliate", "Supplier"]
-              : []),
-            "Active",
-            ...(accountType === "Corporate Brand"
-              ? ["Onboarding"]
-              : accountType === "Affiliate"
-                ? ["Prospect", "On Hold", "Rejected", "Inactive"]
-                : [
-                    "Onboarding",
-                    "Prospect",
-                    "On Hold",
-                    "Rejected",
-                    "Inactive",
-                  ]),
-          ]}
-        />
-        <div className="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>
-                  <SortHead
-                    label="Account name"
-                    onClick={() => doSort("name")}
-                  />
-                </th>
-                <th>
-                  <SortHead label="Type" onClick={() => doSort("type")} />
-                </th>
-                <th>
-                  <SortHead
-                    label="Account manager"
-                    onClick={() => doSort("manager")}
-                  />
-                </th>
-                <th>Email</th>
-                <th>
-                  <SortHead label="Status" onClick={() => doSort("status")} />
-                </th>
-                <th>Connected retailer</th>
-                <th>Shopify</th>
-                <th>Last activity</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {rows.slice(current * 10, current * 10 + 10).map((a) => (
-                <tr
-                  key={a.id}
-                  tabIndex={0}
-                  onKeyDown={(e) => e.key === "Enter" && openAccount(a)}
-                  onClick={() => openAccount(a)}
-                >
-                  <td>
-                    <div className="identity">
-                      <AccountLogo name={a.name} color={a.color} />
-                      <div>
-                        <strong>{a.name}</strong>
-                        <small>{a.id}</small>
-                      </div>
-                    </div>
-                  </td>
-                  <td>
-                    <span
-                      className={`type-pill ${a.type === "Affiliate" ? "blue" : "purple"}`}
-                    >
-                      {a.type === "Affiliate" ? (
-                        <Users size={12} />
-                      ) : (
-                        <Building2 size={12} />
-                      )}{" "}
-                      {a.type}
-                    </span>
-                  </td>
-                  <td>
-                    <div className="identity">
-                      <Avatar name={a.manager} size={25} />
-                      <span>{a.manager}</span>
-                    </div>
-                  </td>
-                  <td className="muted">{a.email}</td>
-                  <td>
-                    <Badge>{a.status}</Badge>
-                  </td>
-                  <td>{a.retailers[0]}</td>
-                  <td>
-                    <Badge>{a.shopify}</Badge>
-                  </td>
-                  <td className="muted">{a.lastActivity}</td>
-                  <td>
-                    <ChevronRight size={15} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {!rows.length && <EmptyState />}
-        </div>
-        <div className="table-footer">
-          <span>
-            Showing {rows.length ? current * 10 + 1 : 0}–
-            {Math.min(current * 10 + 10, rows.length)} of {rows.length} accounts
-          </span>
-          <div>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={current === 0}
-              onClick={() => setPage(current - 1)}
-            >
-              <ChevronLeft size={14} />
-              Previous
-            </Button>
-            <span>
-              {current + 1} / {pages}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={current === pages - 1}
-              onClick={() => setPage(current + 1)}
-            >
-              Next
-              <ChevronRight size={14} />
-            </Button>
-          </div>
-        </div>
-      </Card>
-    </>
-  );
-}
-export function exportCSV(rows: Account[]) {
-  const fields = [
-    "name",
-    "type",
-    "manager",
-    "email",
-    "status",
-    "shopify",
-  ] as const;
-  const csv = [
-    fields.join(","),
-    ...rows.map((a) =>
-      fields
-        .map((f) => '"' + String(a[f]).replaceAll('"', '""') + '"')
-        .join(","),
-    ),
-  ].join("\n");
-  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "bn-crm-accounts.csv";
-  a.click();
-  URL.revokeObjectURL(url);
-  toast.success("Account export downloaded");
-}
+export { Accounts, exportCSV } from "./account-directory";
+
 export function AccountProfile({
   id,
   onClose,
   edit,
   openItem,
   navigate,
+  initialTab = "Overview",
+  createWork,
 }: {
   id: string | null;
   onClose: () => void;
   edit: (a: Account) => void;
   openItem: (i: WorkItem, k: "tasks" | "cases") => void;
   navigate: (s: string) => void;
+  initialTab?: AccountSection;
+  createWork: () => void;
 }) {
-  const { data, setData, can, actor } = useStore();
-  const [tab, setTab] = useState("Overview");
+  const { data, setData, can, actor } = useStore((s) => ({ data: s.data, setData: s.setData, can: s.can, actor: s.actor }));
+  const [tab, setTab] = useState<AccountSection>(initialTab);
   const [note, setNote] = useState("");
   const a = data.accounts.find((a) => a.id === id);
   if (!a) return null;
+  const nextStep = accountNextStep(a);
+  const completed = a.checks.filter(Boolean).length;
+  const moreTabs: AccountSection[] = [
+    "Tasks & cases",
+    "Contacts",
+    "Relationships",
+    ...(can("billing.read") ? ["Commercial" as const] : []),
+    "Notes & files",
+  ];
   const tasks = data.tasks.filter((t) => t.accountId === id),
     cases = data.cases.filter((c) => c.accountId === id);
-  const addNote = () => {
+  const addNote = async () => {
     if (!note.trim()) return;
-    const saved = setData((d) => ({
+    const saved = await setData((d) => ({
       ...d,
       accounts: d.accounts.map((x) =>
         x.id === id
@@ -426,24 +85,26 @@ export function AccountProfile({
   return (
     <Dialog open={!!id} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="profile-drawer">
-        <DialogDescription className="eyebrow">
-          ACCOUNTS / {a.id}
+        <DialogDescription className="profile-caption">
+          Account details <span>{a.id}</span>
         </DialogDescription>
         <div className="profile-heading">
-          <AccountLogo name={a.name} color={a.color} size={58} />
+          <AccountLogo name={a.name} color={a.color} size={44} />
           <div>
             <DialogTitle>{a.name}</DialogTitle>
             <span>
-              {a.type} <span className="inline-dot">·</span> {a.email}
+              {a.type === "Supplier" ? "Supplier (provisional)" : a.type}
             </span>
           </div>
         </div>
+        {a.type === "Supplier" && <SupplierProvisionalNotice />}
         <div className="profile-controls">
           <Badge>{a.status}</Badge>
           <span className="identity">
             <Avatar name={a.manager} size={23} />
             {a.manager}
           </span>
+          {can("tasks.create", { accountId: a.id }) && <Button size="sm" onClick={createWork}>New work request</Button>}
           <Button
             disabled={!can("accounts.edit", a)}
             variant="outline"
@@ -454,87 +115,159 @@ export function AccountProfile({
             Edit account
           </Button>
         </div>
-        <div className="profile-tabs">
-          {[
-            "Overview",
-            "Contacts",
-            "Relationships",
-            "Commercial",
-            "Onboarding",
-            "Tasks & cases",
-            "Activity",
-            "Notes & files",
-          ]
-            .filter((t) => t !== "Commercial" || can("billing.read"))
-            .map((t) => (
-              <button
-                key={t}
-                className={tab === t ? "active" : ""}
-                onClick={() => setTab(t)}
-              >
-                {t}
-              </button>
+        <nav className="profile-tabs" aria-label="Account sections">
+          {(["Overview", "Onboarding", "Activity"] as const).map((t) => (
+            <button
+              key={t}
+              className={tab === t ? "active" : ""}
+              aria-pressed={tab === t}
+              onClick={() => setTab(t)}
+            >
+              {t}
+            </button>
+          ))}
+          <Select
+            className={`profile-more ${moreTabs.includes(tab) ? "active" : ""}`}
+            aria-label="More account sections"
+            value={moreTabs.includes(tab) ? tab : ""}
+            onChange={(e) => {
+              if (e.target.value) setTab(e.target.value as AccountSection);
+            }}
+          >
+            <option value="" disabled>
+              More
+            </option>
+            {moreTabs.map((t) => (
+              <option key={t}>{t}</option>
             ))}
-        </div>
+          </Select>
+        </nav>
         <div className="profile-body">
           {tab === "Overview" && (
             <>
-              <div className="profile-section">
-                <h3>About {a.name}</h3>
-                <p>{a.description}</p>
+              <div className="profile-summary-row">
+                <span>Account owner</span>
+                <strong>{a.manager}</strong>
               </div>
-              <div className="detail-grid">
-                <Info label="Account type" value={a.type} />
-                <Info
-                  label="BNX identifier"
-                  value={`${a.bnxId || "Not linked"}${a.bnxVerified ? " · Verified mock" : ""}`}
-                />
-                {data.configuration.customFields
-                  .filter(
-                    (f) => f.scope === "All accounts" || f.scope === a.type,
-                  )
-                  .map((f) => (
-                    <Info
-                      key={f.id}
-                      label={f.label}
-                      value={a.customFields?.[f.id] || "—"}
-                    />
-                  ))}
-                <Info label="Account manager" value={a.manager} />
-                <Info label="Email" value={a.email} />
-                <Info label="Pipeline stage" value={a.stage} />
-                <Info label="Next follow-up" value={dateLabel(a.followUp)} />
-                <Info label="Shopify integration" value={a.shopify} />
-              </div>
-              <div className="profile-stats">
-                <div>
-                  <strong>{a.contacts.length}</strong>
-                  <span>Contacts</span>
+              {a.type === "Corporate Brand" && (
+                <div className="profile-summary-row">
+                  <span>Setup progress</span>
+                  <strong>{completed} of 6 checks</strong>
                 </div>
-                <div>
-                  <strong>{tasks.length}</strong>
-                  <span>Work items</span>
-                </div>
-                <div>
-                  <strong>{cases.length}</strong>
-                  <span>Support cases</span>
-                </div>
-                <div>
-                  <strong>{a.retailers.length}</strong>
-                  <span>Retailers</span>
-                </div>
-              </div>
-              <div className="profile-section">
-                <h3>Latest account note</h3>
-                <p>{a.notes[0]?.text || "No notes yet."}</p>
-                <button
-                  className="text-link"
-                  onClick={() => setTab("Notes & files")}
+              )}
+              <div className="profile-next-action">
+                <span>
+                  <ArrowUpRight size={14} />
+                  Next step
+                </span>
+                <h3>{nextStep.label}</h3>
+                <p>{nextStep.description}</p>
+                <Button
+                  variant="outline"
+                  onClick={() =>
+                    setTab(
+                      a.type === "Corporate Brand" ? "Onboarding" : "Activity",
+                    )
+                  }
                 >
-                  View all notes
+                  {a.type === "Corporate Brand"
+                    ? "Review onboarding"
+                    : "View account activity"}
                   <ArrowRight size={14} />
-                </button>
+                </Button>
               </div>
+              <section
+                className="profile-recent-activity"
+                aria-label="Recent activity"
+              >
+                <div className="profile-section-heading">
+                  <h3>Recent activity</h3>
+                  <button
+                    className="text-link"
+                    onClick={() => setTab("Activity")}
+                  >
+                    View all
+                    <ArrowRight size={13} />
+                  </button>
+                </div>
+                {a.history.slice(0, 3).map((h) => (
+                  <div className="history-row" key={h.id}>
+                    <Clock3 size={15} />
+                    <div>
+                      <p>{h.text}</p>
+                      <small>
+                        {h.author} ·{" "}
+                        {new Date(h.at).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </small>
+                    </div>
+                  </div>
+                ))}
+                {!a.history.length && (
+                  <p className="muted">No account activity yet.</p>
+                )}
+              </section>
+              <details className="profile-information">
+                <summary>Account information</summary>
+                <div className="profile-section">
+                  <h3>About {a.name}</h3>
+                  <p>{a.description}</p>
+                </div>
+                <div className="detail-grid">
+                  <Info label="Account type" value={a.type} />
+                  <Info
+                    label="BNX identifier"
+                    value={`${a.bnxId || "Not linked"}${a.bnxVerified ? " · Verified mock" : ""}`}
+                  />
+                  {data.configuration.customFields
+                    .filter(
+                      (f) => f.scope === "All accounts" || f.scope === a.type,
+                    )
+                    .map((f) => (
+                      <Info
+                        key={f.id}
+                        label={f.label}
+                        value={a.customFields?.[f.id] || "—"}
+                      />
+                    ))}
+                  <Info label="Account manager" value={a.manager} />
+                  <Info label="Email" value={a.email} />
+                  <Info label="Pipeline stage" value={a.stage} />
+                  <Info label="Next follow-up" value={dateLabel(a.followUp)} />
+                  <Info label="Shopify integration" value={a.shopify} />
+                </div>
+                <div className="profile-stats">
+                  <div>
+                    <strong>{a.contacts.length}</strong>
+                    <span>Contacts</span>
+                  </div>
+                  <div>
+                    <strong>{tasks.length}</strong>
+                    <span>Work items</span>
+                  </div>
+                  <div>
+                    <strong>{cases.length}</strong>
+                    <span>Support cases</span>
+                  </div>
+                  <div>
+                    <strong>{a.retailers.length}</strong>
+                    <span>Retailers</span>
+                  </div>
+                </div>
+                <div className="profile-section">
+                  <h3>Latest account note</h3>
+                  <p>{a.notes[0]?.text || "No notes yet."}</p>
+                  <button
+                    className="text-link"
+                    onClick={() => setTab("Notes & files")}
+                  >
+                    View all notes
+                    <ArrowRight size={14} />
+                  </button>
+                </div>
+              </details>
             </>
           )}
           {tab === "Contacts" && (
@@ -558,7 +291,11 @@ export function AccountProfile({
           )}
           {tab === "Relationships" && (
             <>
-              <h3>Connected retailers</h3>
+              <h3>
+                {a.type === "Supplier"
+                  ? "Illustrative retailer links"
+                  : "Connected retailers"}
+              </h3>
               {a.retailers.map((r) => (
                 <div className="relationship-row" key={r}>
                   <span className="tile-icon blue">
@@ -571,7 +308,11 @@ export function AccountProfile({
                   <Badge>Connected</Badge>
                 </div>
               ))}
-              <h3 className="spaced">Associated brands</h3>
+              <h3 className="spaced">
+                {a.type === "Supplier"
+                  ? "Illustrative brand links"
+                  : "Associated brands"}
+              </h3>
               {a.type === "Corporate Brand" ? (
                 <p>{a.name} is the primary brand for this account.</p>
               ) : (
@@ -589,7 +330,11 @@ export function AccountProfile({
                     </div>
                   ))
               )}
-              <h3 className="spaced">Connected barrels</h3>
+              <h3 className="spaced">
+                {a.type === "Supplier"
+                  ? "Illustrative barrel links"
+                  : "Connected barrels"}
+              </h3>
               {data.barrels
                 .filter((b) => b.affiliateId === id || b.supplierId === id)
                 .map((b) => (
@@ -629,8 +374,18 @@ export function AccountProfile({
             <>
               {a.type === "Corporate Brand" ? (
                 <>
-                  <h3>Brand setup</h3>
-                  <div className="progress">
+                  <div className="profile-section-heading">
+                    <h3>Launch requirements</h3>
+                    <span>{completed} / 6</span>
+                  </div>
+                  <div
+                    className="progress"
+                    role="progressbar"
+                    aria-label="Completed setup checks"
+                    aria-valuemin={0}
+                    aria-valuemax={6}
+                    aria-valuenow={completed}
+                  >
                     <span
                       style={{
                         width: `${(a.checks.filter(Boolean).length / 6) * 100}%`,
@@ -640,7 +395,7 @@ export function AccountProfile({
                   {a.checks.map((done, i) => (
                     <div className="checklist-row" key={i}>
                       <span className={done ? "step-done" : "step-number"}>
-                        {done ? "✓" : i + 1}
+                        {done ? <Check size={14} /> : <Circle size={14} />}
                       </span>
                       <span>
                         {
@@ -657,6 +412,9 @@ export function AccountProfile({
                       <Badge>{done ? "Done" : "Pending"}</Badge>
                     </div>
                   ))}
+                  <p className="profile-onboarding-note">
+                    {nextStep.description}
+                  </p>
                   <Button
                     disabled={!canPage(actor, "Brand Onboarding", data)}
                     onClick={() => {
@@ -781,12 +539,12 @@ export function AccountProfile({
                   type="file"
                   disabled={!can("accounts.note", a)}
                   multiple
-                  onChange={(e) => {
+                  onChange={async (e) => {
                     const names = Array.from(e.target.files || []).map(
                       (f) => f.name,
                     );
                     if (names.length) {
-                      setData((d) => ({
+                      if (!(await setData((d) => ({
                         ...d,
                         accounts: d.accounts.map((x) =>
                           x.id === id
@@ -796,7 +554,7 @@ export function AccountProfile({
                               }
                             : x,
                         ),
-                      }));
+                      })))) return;
                       toast.success("File references added");
                     }
                   }}

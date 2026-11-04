@@ -1,4 +1,6 @@
 "use client";
+import { todayDate } from "@/lib/dates";
+import { SupplierProvisionalNotice } from "./supplier-provisional";
 import { useState } from "react";
 import {
   Plus,
@@ -54,7 +56,7 @@ const money = (v: number) =>
   }).format(v);
 
 export function UsersRoles() {
-  const { data } = useStore();
+  const { data } = useStore((s) => ({ data: s.data }));
   const [edit, setEdit] = useState<DemoUser | null | "new">(null);
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState("Users");
@@ -73,7 +75,7 @@ export function UsersRoles() {
         <ShieldCheck size={17} />
         <span>
           Prototype administration. These users and roles are fictional; no
-          accounts or invitations are created outside this browser.
+          login accounts or invitations are created.
         </span>
       </div>
       <div className="account-summary">
@@ -185,11 +187,14 @@ export function UsersRoles() {
   );
 }
 function UserForm({ user, close }: { user?: DemoUser; close: () => void }) {
-  const { data, setData } = useStore();
+  const { data: formSnapshot, saving } = useStore((s) => ({ data: s.data, saving: s.saving }));
+  const [baseline]=useState(formSnapshot);
+
+  const { data, setData } = useStore((s) => ({ data: s.data, setData: s.setData }));
   const [roles, setRoles] = useState<Role[]>(user?.roles || ["Viewer"]);
   return (
     <form
-      onSubmit={(e) => {
+      onSubmit={async (e) => {
         e.preventDefault();
         if (!roles.length) {
           toast.error("Assign at least one predefined role.");
@@ -216,12 +221,12 @@ function UserForm({ user, close }: { user?: DemoUser; close: () => void }) {
           accountIds: user?.accountIds || ["BR-001", "AF-001"],
         };
         if (
-          setData((d) => ({
+          await setData((d) => ({
             ...d,
             users: user
               ? d.users.map((u) => (u.id === user.id ? next : u))
               : [...d.users, next],
-          }))
+          }), baseline)
         ) {
           toast.success("Demo user roles saved");
           close();
@@ -284,7 +289,7 @@ function UserForm({ user, close }: { user?: DemoUser; close: () => void }) {
         <Button variant="outline" type="button" onClick={close}>
           Cancel
         </Button>
-        <Button type="submit" disabled={!roles.length}>
+        <Button type="submit" disabled={saving || !roles.length}>
           Save roles
         </Button>
       </div>
@@ -293,13 +298,13 @@ function UserForm({ user, close }: { user?: DemoUser; close: () => void }) {
 }
 
 export function Configuration() {
-  const { data, setData } = useStore();
+  const { data, setData } = useStore((s) => ({ data: s.data, setData: s.setData }));
   const [tab, setTab] = useState("Pipelines");
   const [stage, setStage] = useState("");
   const [target, setTarget] = useState("Affiliate");
   const [field, setField] = useState(false);
   const cfg = data.configuration;
-  const addStage = () => {
+  const addStage = async () => {
     const value = stage.trim();
     if (!value) return;
     const list =
@@ -311,7 +316,7 @@ export function Configuration() {
       return;
     }
     if (
-      setData((d) => ({
+      await setData((d) => ({
         ...d,
         configuration: {
           ...d.configuration,
@@ -369,8 +374,8 @@ export function Configuration() {
                   variant="ghost"
                   size="sm"
                   aria-label={`Remove ${s}`}
-                  onClick={() =>
-                    setData((d) => ({
+                  onClick={async () =>
+                    await setData((d) => ({
                       ...d,
                       configuration: {
                         ...d.configuration,
@@ -388,9 +393,10 @@ export function Configuration() {
           </Card>
           <Card className="settings-card">
             <PanelHeading
-              title="Supplier stages"
-              subtitle="Separate from affiliate acquisition"
+              title="Supplier stages · Provisional"
+              subtitle="Illustrative configuration while supplier relationships are being defined"
             />
+            <SupplierProvisionalNotice />
             {cfg.supplierStages.map((s) => (
               <div className="config-stage" key={s}>
                 <span>{s}</span>
@@ -398,8 +404,8 @@ export function Configuration() {
                   variant="ghost"
                   size="sm"
                   aria-label={`Remove supplier stage ${s}`}
-                  onClick={() =>
-                    setData((d) => ({
+                  onClick={async () =>
+                    await setData((d) => ({
                       ...d,
                       configuration: {
                         ...d.configuration,
@@ -486,8 +492,8 @@ export function Configuration() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() =>
-                    setData((d) => ({
+                  onClick={async () =>
+                    await setData((d) => ({
                       ...d,
                       views: d.views.filter((x) => x.id !== v.id),
                     }))
@@ -515,11 +521,11 @@ export function Configuration() {
   );
 }
 function FieldForm({ close }: { close: () => void }) {
-  const { data, setData } = useStore();
+  const { data, setData } = useStore((s) => ({ data: s.data, setData: s.setData }));
   const [type, setType] = useState("Text");
   return (
     <form
-      onSubmit={(e) => {
+      onSubmit={async (e) => {
         e.preventDefault();
         const f = new FormData(e.currentTarget);
         const label = String(f.get("label")).trim();
@@ -548,7 +554,7 @@ function FieldForm({ close }: { close: () => void }) {
           sensitive: f.get("sensitive") === "on",
         };
         if (
-          setData((d) => ({
+          await setData((d) => ({
             ...d,
             configuration: {
               ...d.configuration,
@@ -611,7 +617,7 @@ function FieldForm({ close }: { close: () => void }) {
 }
 
 export function AuditLog() {
-  const { data } = useStore();
+  const { data } = useStore((s) => ({ data: s.data }));
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("All outcomes");
   const rows = data.audit.filter(
@@ -681,7 +687,7 @@ export function AuditLog() {
         </div>
       </Card>
       <p className="subtle spaced">
-        This is a browser-local demonstration of an audit trail, not a
+        This is a demonstration of an audit trail, not a
         tamper-proof production log.
       </p>
     </>
@@ -695,7 +701,7 @@ export function Finance({
   mode?: "Billing" | "Payment Follow-ups" | "Finance Reports";
   openAccount: (a: Account) => void;
 }) {
-  const { data, setData, can } = useStore();
+  const { data, setData, can } = useStore((s) => ({ data: s.data, setData: s.setData, can: s.can }));
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("All statuses");
   const [edit, setEdit] = useState<Invoice | null | "new">(null);
@@ -850,9 +856,9 @@ export function Finance({
                         <Button
                           variant="secondary"
                           size="sm"
-                          onClick={() => {
+                          onClick={async () => {
                             if (
-                              setData((d) => ({
+                              await setData((d) => ({
                                 ...d,
                                 billing: d.billing.map((x) =>
                                   x.id === b.id ? { ...x, status: "Paid" } : x,
@@ -898,10 +904,13 @@ function InvoiceForm({
   invoice?: Invoice;
   close: () => void;
 }) {
-  const { data, setData } = useStore();
+  const { data: formSnapshot, saving } = useStore((s) => ({ data: s.data, saving: s.saving }));
+  const [baseline]=useState(formSnapshot);
+
+  const { data, setData } = useStore((s) => ({ data: s.data, setData: s.setData }));
   return (
     <form
-      onSubmit={(e) => {
+      onSubmit={async (e) => {
         e.preventDefault();
         const f = new FormData(e.currentTarget);
         const item: Invoice = {
@@ -914,12 +923,12 @@ function InvoiceForm({
           reference: String(f.get("reference")),
         };
         if (
-          setData((d) => ({
+          await setData((d) => ({
             ...d,
             billing: invoice
               ? d.billing.map((x) => (x.id === invoice.id ? item : x))
               : [item, ...d.billing],
-          }))
+          }), baseline)
         ) {
           toast.success("Mock invoice saved");
           close();
@@ -935,7 +944,7 @@ function InvoiceForm({
       <div className="form-grid">
         <label className="field-label full">
           Account
-          <select
+          <Select
             name="account"
             className="input"
             required
@@ -948,7 +957,7 @@ function InvoiceForm({
                   {a.name}
                 </option>
               ))}
-          </select>
+          </Select>
         </label>
         <label className="field-label full">
           Description
@@ -995,7 +1004,7 @@ function InvoiceForm({
         <Button type="button" variant="outline" onClick={close}>
           Cancel
         </Button>
-        <Button type="submit">Save mock invoice</Button>
+        <Button disabled={saving} type="submit">Save mock invoice</Button>
       </div>
     </form>
   );
@@ -1010,11 +1019,14 @@ function ActivityForm({
   kind: Activity["kind"];
   close: () => void;
 }) {
-  const { data, setData, actor, can } = useStore();
+  const { data: formSnapshot, saving } = useStore((s) => ({ data: s.data, saving: s.saving }));
+  const [baseline]=useState(formSnapshot);
+
+  const { data, setData, actor, can } = useStore((s) => ({ data: s.data, setData: s.setData, actor: s.actor, can: s.can }));
   const writable = can("activities.edit", activity);
   return (
     <form
-      onSubmit={(e) => {
+      onSubmit={async (e) => {
         e.preventDefault();
         const f = new FormData(e.currentTarget);
         const a: Activity = {
@@ -1032,12 +1044,12 @@ function ActivityForm({
           notes: String(f.get("notes")),
         };
         if (
-          setData((d) => ({
+          await setData((d) => ({
             ...d,
             activities: activity
               ? d.activities.map((x) => (x.id === a.id ? a : x))
               : [a, ...d.activities],
-          }))
+          }), baseline)
         ) {
           toast.success("Activity saved");
           close();
@@ -1058,7 +1070,7 @@ function ActivityForm({
         </label>
         <label className="field-label">
           Account
-          <select
+          <Select
             name="accountId"
             className="input"
             required
@@ -1071,7 +1083,7 @@ function ActivityForm({
                   {a.name}
                 </option>
               ))}
-          </select>
+          </Select>
         </label>
         <label className="field-label">
           Type
@@ -1087,7 +1099,7 @@ function ActivityForm({
             type="datetime-local"
             name="due"
             required
-            defaultValue={activity?.due || "2026-10-29T14:00"}
+            defaultValue={activity?.due || `${todayDate()}T14:00`}
           />
         </label>
         <label className="field-label">
@@ -1125,7 +1137,7 @@ function ActivityForm({
         <Button variant="outline" type="button" onClick={close}>
           Close
         </Button>
-        {writable && <Button type="submit">Save activity</Button>}
+        {writable && <Button disabled={saving} type="submit">Save activity</Button>}
       </div>
     </form>
   );
@@ -1136,9 +1148,11 @@ export function Retailers({
 }: {
   openAccount: (a: Account) => void;
 }) {
-  const { data, setData, can } = useStore();
+  const { data, setData, can, saving } = useStore((s) => ({ data: s.data, setData: s.setData, can: s.can, saving: s.saving }));
   const [query, setQuery] = useState("");
-  const [edit, setEdit] = useState<RetailerRecord | null | "new">(null);
+  const [edit, setEditRecord] = useState<RetailerRecord | null | "new">(null);
+  const [editBaseline,setEditBaseline]=useState(data);
+  const setEdit=(value:RetailerRecord|null|"new")=>{if(value)setEditBaseline(data);setEditRecord(value);};
   const rows = data.retailerRecords.filter((r) =>
     `${r.name} ${r.region}`.toLowerCase().includes(query.toLowerCase()),
   );
@@ -1216,7 +1230,7 @@ export function Retailers({
         {edit && (
           <DialogContent>
             <form
-              onSubmit={(e) => {
+              onSubmit={async (e) => {
                 e.preventDefault();
                 const f = new FormData(e.currentTarget);
                 const old = typeof edit === "string" ? undefined : edit;
@@ -1238,12 +1252,12 @@ export function Retailers({
                   return;
                 }
                 if (
-                  setData((d) => ({
+                  await setData((d) => ({
                     ...d,
                     retailerRecords: old
                       ? d.retailerRecords.map((x) => (x.id === r.id ? r : x))
                       : [...d.retailerRecords, r],
-                  }))
+                  }), editBaseline)
                 ) {
                   toast.success("Retailer saved");
                   setEdit(null);
@@ -1304,7 +1318,7 @@ export function Retailers({
                   Close
                 </Button>
                 {can("retailers.edit") && (
-                  <Button type="submit">Save retailer</Button>
+                  <Button disabled={saving} type="submit">Save retailer</Button>
                 )}
               </div>
             </form>
@@ -1320,7 +1334,7 @@ export function TeamAssignments({
 }: {
   openAccount: (a: Account) => void;
 }) {
-  const { data, setData } = useStore();
+  const { data, setData } = useStore((s) => ({ data: s.data, setData: s.setData }));
   const [query, setQuery] = useState("");
   const owners = data.users
     .filter(
@@ -1377,9 +1391,9 @@ export function TeamAssignments({
                         label={`Manager for ${a.name}`}
                         options={[...new Set([a.manager, ...owners])]}
                         value={a.manager}
-                        onChange={(e) => {
+                        onChange={async (e) => {
                           if (
-                            setData((d) => ({
+                            await setData((d) => ({
                               ...d,
                               accounts: d.accounts.map((x) =>
                                 x.id === a.id
@@ -1418,7 +1432,7 @@ export function Activities({
   followups?: boolean;
   openAccount: (a: Account) => void;
 }) {
-  const { data, setData, actor, can } = useStore();
+  const { data, setData, actor, can } = useStore((s) => ({ data: s.data, setData: s.setData, actor: s.actor, can: s.can }));
   const [query, setQuery] = useState("");
   const [view, setView] = useState("List");
   const [month, setMonth] = useState("2026-10");
@@ -1492,9 +1506,9 @@ export function Activities({
                   aria-label={`Follow-up for ${a.name}`}
                   value={a.followUp}
                   disabled={!can("accounts.edit", a)}
-                  onChange={(e) => {
+                  onChange={async (e) => {
                     if (e.target.value)
-                      setData((d) => ({
+                      await setData((d) => ({
                         ...d,
                         accounts: d.accounts.map((x) =>
                           x.id === a.id

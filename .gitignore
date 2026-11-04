@@ -6,3 +6,8 @@ out/
 .env*
 !.env.example
 .DS_Store
+.local-data/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+backups/

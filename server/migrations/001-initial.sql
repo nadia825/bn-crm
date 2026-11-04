@@ -1,0 +1,17 @@
+CREATE TABLE IF NOT EXISTS metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL CHECK(json_valid(value)));
+CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, position INTEGER NOT NULL, payload TEXT NOT NULL CHECK(json_valid(payload)));
+CREATE TABLE IF NOT EXISTS retailers (id TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE, position INTEGER NOT NULL, payload TEXT NOT NULL CHECK(json_valid(payload)));
+CREATE TABLE IF NOT EXISTS accounts (id TEXT PRIMARY KEY, type TEXT NOT NULL, bnx_id TEXT, bnx_verified INTEGER NOT NULL, position INTEGER NOT NULL, payload TEXT NOT NULL CHECK(json_valid(payload)));
+CREATE UNIQUE INDEX IF NOT EXISTS verified_bnx_identifier ON accounts(bnx_id) WHERE bnx_verified = 1 AND bnx_id IS NOT NULL;
+CREATE TABLE IF NOT EXISTS account_retailers (account_id TEXT NOT NULL REFERENCES accounts(id), retailer_name TEXT NOT NULL REFERENCES retailers(name), PRIMARY KEY(account_id, retailer_name));
+CREATE TABLE IF NOT EXISTS cases (id TEXT PRIMARY KEY, account_id TEXT NOT NULL REFERENCES accounts(id), position INTEGER NOT NULL, payload TEXT NOT NULL CHECK(json_valid(payload)), UNIQUE(id, account_id));
+CREATE TABLE IF NOT EXISTS tasks (id TEXT PRIMARY KEY, account_id TEXT NOT NULL REFERENCES accounts(id), case_id TEXT, position INTEGER NOT NULL, payload TEXT NOT NULL CHECK(json_valid(payload)), FOREIGN KEY(case_id, account_id) REFERENCES cases(id, account_id));
+CREATE TABLE IF NOT EXISTS barrels (id TEXT PRIMARY KEY, affiliate_id TEXT NOT NULL REFERENCES accounts(id), supplier_id TEXT NOT NULL REFERENCES accounts(id), retailer_name TEXT NOT NULL REFERENCES retailers(name), position INTEGER NOT NULL, payload TEXT NOT NULL CHECK(json_valid(payload)));
+CREATE TABLE IF NOT EXISTS billing (id TEXT PRIMARY KEY, account_id TEXT NOT NULL REFERENCES accounts(id), position INTEGER NOT NULL, payload TEXT NOT NULL CHECK(json_valid(payload)));
+CREATE TABLE IF NOT EXISTS activities (id TEXT PRIMARY KEY, account_id TEXT NOT NULL REFERENCES accounts(id), position INTEGER NOT NULL, payload TEXT NOT NULL CHECK(json_valid(payload)));
+CREATE TABLE IF NOT EXISTS views (id TEXT PRIMARY KEY, owner_id TEXT NOT NULL REFERENCES users(id), position INTEGER NOT NULL, payload TEXT NOT NULL CHECK(json_valid(payload)));
+CREATE TABLE IF NOT EXISTS audit (id TEXT PRIMARY KEY, position INTEGER NOT NULL, payload TEXT NOT NULL CHECK(json_valid(payload)));
+CREATE INDEX IF NOT EXISTS tasks_by_account ON tasks(account_id);
+CREATE INDEX IF NOT EXISTS cases_by_account ON cases(account_id);
+CREATE INDEX IF NOT EXISTS billing_by_account ON billing(account_id);
+PRAGMA user_version = 1;

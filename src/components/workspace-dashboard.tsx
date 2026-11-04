@@ -1,4 +1,6 @@
 "use client";
+import { DailyActions } from "./daily-actions";
+import { todayDate } from "@/lib/dates";
 import {
   ArrowRight,
   Building2,
@@ -53,6 +55,7 @@ type Props = {
   openOnboarding: (a: Account) => void;
   createAccount: () => void;
   createWork: () => void;
+  reviewApproval: (a: Account) => void;
 };
 type Metric = {
   label: string;
@@ -65,7 +68,7 @@ type Metric = {
 
 export function WorkspaceDashboard(props: Props) {
   const { workspace, navigate, createAccount, createWork } = props;
-  const { data } = useStore();
+  const { data } = useStore((s) => ({ data: s.data }));
   const accounts = scopedAccounts(data, workspace);
   const cases = scopedItems(data, "cases", workspace).filter((c) =>
     openCase(c.status),
@@ -144,10 +147,10 @@ export function WorkspaceDashboard(props: Props) {
               label: "Follow-ups due",
               value: accounts.filter(
                 (a) =>
-                  a.followUp <= "2026-10-28" &&
+                  a.followUp <= todayDate() &&
                   !["Rejected", "Live"].includes(a.stage),
               ).length,
-              detail: "As of Oct 28 · Account Manager action",
+              detail: "Due by today · Account Manager action",
               icon: CalendarDays,
               color: "amber",
               page: "Affiliate Pipeline",
@@ -157,7 +160,7 @@ export function WorkspaceDashboard(props: Props) {
             {
               label: "Open operational work",
               value: tasks.length,
-              detail: "Across brands, affiliates & suppliers",
+              detail: "Across brands, affiliates & provisional suppliers",
               icon: ClipboardList,
               color: "purple",
               page: "Work Board",
@@ -232,6 +235,7 @@ export function WorkspaceDashboard(props: Props) {
               : "New work request"}
         </Button>
       </SectionTitle>
+      <DailyActions workspace={workspace} openAccount={props.openAccount} openItem={props.openItem} reviewApproval={props.reviewApproval} />
       <div className={`workspace-context-bar ${workspace}`}>
         <span>
           <i className="live-dot" />
@@ -523,7 +527,7 @@ function OperationsHome({
   navigate,
   openOnboarding,
 }: Props & { tasks: WorkItem[]; pending: Account[] }) {
-  const { data } = useStore();
+  const { data } = useStore((s) => ({ data: s.data }));
   const distribution = [
     { name: "New", color: "#b79ae8" },
     { name: "In Progress", color: "#8650d5" },
@@ -673,7 +677,7 @@ function TaskPanel({
   navigate,
   openItem,
 }: Pick<Props, "workspace" | "navigate" | "openItem"> & { tasks: WorkItem[] }) {
-  const { data, setData } = useStore();
+  const { data, setData } = useStore((s) => ({ data: s.data, setData: s.setData }));
   const upcoming = [...tasks]
     .sort((a, b) => a.due.localeCompare(b.due))
     .slice(0, 4);
@@ -694,8 +698,8 @@ function TaskPanel({
           <button
             className="check-circle"
             aria-label={`Complete ${t.title}`}
-            onClick={() => {
-              setData((d) => ({
+            onClick={async () => {
+              if (!(await setData((d) => ({
                 ...d,
                 tasks: d.tasks.map((x) =>
                   x.id === t.id
@@ -706,7 +710,7 @@ function TaskPanel({
                       }
                     : x,
                 ),
-              }));
+              })))) return;
               toast.success("Task completed across connected views");
             }}
           >
@@ -741,7 +745,7 @@ function CasePanel({
   navigate,
   openItem,
 }: Pick<Props, "navigate" | "openItem"> & { cases: WorkItem[] }) {
-  const { data } = useStore();
+  const { data } = useStore((s) => ({ data: s.data }));
   const priority = ["Urgent", "High", "Medium", "Low"];
   return (
     <Card>

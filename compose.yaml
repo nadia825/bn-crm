@@ -7,6 +7,9 @@ services:
     build:
       context: .
       target: runtime
+    depends_on:
+      api:
+        condition: service_healthy
     ports:
       - "127.0.0.1:${BN_CRM_PORT:-3000}:8080"
     restart: unless-stopped
@@ -17,3 +20,22 @@ services:
       - ALL
     security_opt:
       - no-new-privileges:true
+  api:
+    image: bn-crm-api:local
+    build:
+      context: .
+      target: api
+    restart: unless-stopped
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp
+    volumes:
+      - crm-data:/data
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  crm-data:

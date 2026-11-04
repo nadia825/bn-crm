@@ -1,4 +1,5 @@
 "use client";
+import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
 import {
   LayoutDashboard,
@@ -29,7 +30,6 @@ import {
   ArrowUpRight,
   Command,
   CheckCheck,
-  Sparkles,
   X,
   BookOpen,
   ArrowRight,
@@ -38,26 +38,37 @@ import { Toaster, toast } from "sonner";
 import { StoreProvider, useStore } from "@/lib/store";
 import { type Account, type WorkItem } from "@/lib/data";
 import { Button } from "./ui/button";
+import { BrandLogo } from "./brand-logo";
 import {
   Dialog,
   DialogContent,
   DialogTitle,
   DialogDescription,
 } from "./ui/dialog";
-import { Badge, Input, Card } from "./ui/primitives";
+import { Badge, Input, Card, Select } from "./ui/primitives";
 import { Avatar, AccountLogo, EmptyState } from "./shared";
-import { Dashboard } from "./dashboard";
-import { WorkspaceDashboard } from "./workspace-dashboard";
-import { RoleDashboard } from "./role-dashboard";
-import {
-  UsersRoles,
-  Configuration,
-  AuditLog,
-  Finance,
-  Activities,
-  Retailers,
-  TeamAssignments,
-} from "./mock-pages";
+import type { Editor } from "./forms";
+function ScreenLoading() { return <div className="screen-loading" role="status">Opening view…</div>; }
+const RoleDashboard = dynamic(() => import("./role-dashboard").then((m) => m.RoleDashboard), { loading: ScreenLoading });
+const WorkspaceDashboard = dynamic(() => import("./workspace-dashboard").then((m) => m.WorkspaceDashboard), { loading: ScreenLoading });
+const UsersRoles = dynamic(() => import("./mock-pages").then((m) => m.UsersRoles), { loading: ScreenLoading });
+const Configuration = dynamic(() => import("./mock-pages").then((m) => m.Configuration), { loading: ScreenLoading });
+const AuditLog = dynamic(() => import("./mock-pages").then((m) => m.AuditLog), { loading: ScreenLoading });
+const Finance = dynamic(() => import("./mock-pages").then((m) => m.Finance), { loading: ScreenLoading });
+const Activities = dynamic(() => import("./mock-pages").then((m) => m.Activities), { loading: ScreenLoading });
+const Retailers = dynamic(() => import("./mock-pages").then((m) => m.Retailers), { loading: ScreenLoading });
+const TeamAssignments = dynamic(() => import("./mock-pages").then((m) => m.TeamAssignments), { loading: ScreenLoading });
+const Accounts = dynamic(() => import("./account-directory").then((m) => m.Accounts), { loading: ScreenLoading });
+const AccountProfile = dynamic(() => import("./accounts").then((m) => m.AccountProfile));
+const Pipeline = dynamic(() => import("./boards").then((m) => m.Pipeline), { loading: ScreenLoading });
+const WorkBoard = dynamic(() => import("./boards").then((m) => m.WorkBoard), { loading: ScreenLoading });
+const WorkDetail = dynamic(() => import("./boards").then((m) => m.WorkDetail));
+const EditorDialog = dynamic(() => import("./forms").then((m) => m.EditorDialog));
+const Onboarding = dynamic(() => import("./onboarding").then((m) => m.Onboarding), { loading: ScreenLoading });
+const Barrels = dynamic(() => import("./secondary").then((m) => m.Barrels), { loading: ScreenLoading });
+const Contacts = dynamic(() => import("./secondary").then((m) => m.Contacts), { loading: ScreenLoading });
+const Reports = dynamic(() => import("./secondary").then((m) => m.Reports), { loading: ScreenLoading });
+const Settings = dynamic(() => import("./secondary").then((m) => m.Settings), { loading: ScreenLoading });
 import {
   canPage,
   defaultWorkspace,
@@ -76,11 +87,12 @@ import {
   type WorkspaceId,
   type WorkspaceRoute,
 } from "@/lib/workspaces";
-import { Accounts, AccountProfile } from "./accounts";
-import { Pipeline, WorkBoard, WorkDetail } from "./boards";
-import { EditorDialog, type Editor } from "./forms";
-import { Onboarding } from "./onboarding";
-import { Barrels, Contacts, Reports, Settings } from "./secondary";
+
+import type { AccountSection } from "@/lib/account-directory";
+
+
+
+
 const pageIcons: Record<string, typeof Building2> = {
   Dashboard: LayoutDashboard,
   Accounts: Building2,
@@ -122,9 +134,16 @@ export function CRM() {
     </StoreProvider>
   );
 }
+function ConnectionStatus({ loading = false }: { loading?: boolean }) {
+  const { connectionError, retry, serverMode, saving } = useStore((s) => ({ connectionError: s.connectionError, retry: s.retry, serverMode: s.serverMode, saving: s.saving }));
+  if (loading) return <div className="app-loading"><BrandLogo /><strong>{connectionError || "Opening your workspace…"}</strong>{connectionError && <Button onClick={retry}>Retry connection</Button>}</div>;
+  return <div className={`storage-status ${connectionError ? "storage-error" : ""}`} role="status">
+    <span>{serverMode ? "Local database · Fictional demo" : "Browser demo · Fictional data"}</span>
+    <span>{connectionError ? <>{connectionError} <button onClick={retry}>Reconnect</button></> : saving ? "Saving…" : serverMode ? "Shared across local sessions" : "Saved in this browser"}</span>
+  </div>;
+}
 function Workspace() {
-  const { data, setData, ready, actor, demoUsers, switchDemoUser, can } =
-    useStore();
+  const { data, setData, ready, actor, demoUsers, switchDemoUser, can, serverMode } = useStore((s) => ({ data: s.data, setData: s.setData, ready: s.ready, actor: s.actor, demoUsers: s.demoUsers, switchDemoUser: s.switchDemoUser, can: s.can, serverMode: s.serverMode }));
   const [profile, setProfile] = useState(false);
   const workspaceChoices = allowedWorkspaces(actor);
   const [route, setRoute] = useState<WorkspaceRoute>({
@@ -171,6 +190,7 @@ function Workspace() {
   const [onboardingId, setOnboardingId] = useState<string | undefined>();
   const [collapsed, setCollapsed] = useState(false);
   const [accountId, setAccountId] = useState<string | null>(null);
+  const [accountTab, setAccountTab] = useState<AccountSection>("Overview");
   const [selected, setSelected] = useState<{
     id: string;
     kind: "tasks" | "cases";
@@ -258,10 +278,11 @@ function Workspace() {
     setOnboardingId(a.id);
     navigate("Pending Approvals", "operations");
   };
-  const openAccount = (a: Account) => {
+  const openAccount = (a: Account, section: AccountSection = "Overview") => {
     if (a && can("accounts.read", a)) {
       setSelected(null);
       setAccountId(a.id);
+      setAccountTab(section);
       setSearch(false);
     }
   };
@@ -278,7 +299,9 @@ function Workspace() {
   const newWork = () =>
     setEditor({
       type: "tasks",
-      accountScope: isSharedPage(page) ? undefined : workspaceInfo.accountType,
+      accountScope: accountId || selected ? undefined : isSharedPage(page) ? undefined : workspaceInfo.accountType,
+      accountId: accountId || (selected ? data[selected.kind].find((r) => r.id === selected.id)?.accountId : undefined),
+      caseId: selected?.kind === "cases" ? selected.id : undefined,
     });
   const newAccount = () =>
     setEditor({
@@ -286,11 +309,10 @@ function Workspace() {
       accountType: workspaceInfo.accountType || "Corporate Brand",
       lockType: !!workspaceInfo.accountType,
     });
-  const group = nav.find((n) => n.items.some((i) => i.name === page))?.section;
-  const previewRole = (id: string) => {
+  const previewRole = async (id: string) => {
     const user = demoUsers.find((u) => u.id === id && u.active);
     if (!user) return;
-    switchDemoUser(id);
+    if (!(await switchDemoUser(id))) return;
     setAccountId(null);
     setSelected(null);
     setEditor(null);
@@ -339,13 +361,10 @@ function Workspace() {
     .slice(0, 4);
   if (!ready)
     return (
-      <div className="app-loading">
-        <span className="brand-mark">bn</span>
-        <strong>Opening your mock workspace…</strong>
-      </div>
+      <ConnectionStatus loading />
     );
   return (
-    <div
+    <><ConnectionStatus /><div
       className={`app-shell ${collapsed ? "sidebar-collapsed" : ""} ${mobileOpen ? "mobile-nav-open" : ""}`}
     >
       <aside
@@ -353,16 +372,10 @@ function Workspace() {
         aria-label={`${workspaceInfo.name} workspace navigation`}
       >
         <div className="brand">
-          <span className="brand-mark">
-            bn
-            <span />
-          </span>
+          <BrandLogo />
           {!collapsed && (
             <>
-              <strong>
-                BN <span>CRM</span>
-              </strong>
-              <span className="version">v0</span>
+              <strong>Bottle Nexus</strong>
             </>
           )}
           <button
@@ -486,19 +499,6 @@ function Workspace() {
           ))}
         </nav>
         <div className="sidebar-bottom">
-          {!collapsed && (
-            <div className="workspace-tip">
-              <span className="tip-icon">
-                <Sparkles size={17} />
-              </span>
-              <strong>Three workspaces. One shared CRM.</strong>
-              <p>Switch focus. Keep every relationship connected.</p>
-              <button onClick={() => setHelp(true)}>
-                Explore your workspace
-                <ArrowUpRight size={13} />
-              </button>
-            </div>
-          )}
           <button className="help-button" onClick={() => setHelp(true)}>
             <HelpCircle size={17} />
             {!collapsed && (
@@ -543,8 +543,6 @@ function Workspace() {
               {isSharedPage(page) ? data.workspace : workspaceInfo.name}
             </span>
             <ChevronRight size={13} />
-            <span>{group}</span>
-            <ChevronRight size={13} />
             <strong>
               {nav.flatMap((g) => g.items).find((i) => i.name === page)
                 ?.label || page}
@@ -554,8 +552,8 @@ function Workspace() {
             <div className="demo-role-switcher">
               <ShieldCheck size={17} />
               <label>
-                <span>Demo role · Preview only</span>
-                <select
+                <span>Demo role</span>
+                <Select
                   aria-label="Demo role switcher"
                   value={actor.id}
                   onChange={(e) => previewRole(e.target.value)}
@@ -567,7 +565,7 @@ function Workspace() {
                         {u.roles.join(" + ")} — {u.name}
                       </option>
                     ))}
-                </select>
+                </Select>
               </label>
             </div>
             <span className="demo-indicator">
@@ -602,16 +600,6 @@ function Workspace() {
           </div>
         </header>
         <main key={`${actor.id}:${workspace}:${page}`} className="main-content">
-          <div className="role-session-banner">
-            <ShieldCheck size={14} />
-            <span>{actor.roles.join(" + ")}</span>
-            <small>
-              {actor.roles.includes("Viewer") && actor.roles.length === 1
-                ? "Read-only designated records"
-                : "Role-based record and action checks"}{" "}
-              · Browser-local mockup
-            </small>
-          </div>
           {!pageAllowed ? (
             <Card className="workspace-empty-queue">
               <ShieldCheck size={30} />
@@ -636,6 +624,7 @@ function Workspace() {
                     openItem={openItem}
                     newWork={newWork}
                     newAccount={newAccount}
+                  reviewApproval={reviewInOperations}
                   />
                 )}
               {page === "Dashboard" && actor.roles.includes("System Admin") && (
@@ -647,6 +636,7 @@ function Workspace() {
                   openOnboarding={openOnboarding}
                   createAccount={newAccount}
                   createWork={newWork}
+                  reviewApproval={reviewInOperations}
                 />
               )}
 
@@ -658,6 +648,7 @@ function Workspace() {
                   openItem={openItem}
                   newWork={newWork}
                   newAccount={newAccount}
+                  reviewApproval={reviewInOperations}
                 />
               )}
               {page === "All Accounts" && (
@@ -775,11 +766,13 @@ function Workspace() {
           )}
         </main>
       </div>
-      <AccountProfile
-        key={accountId}
+      {accountId && <AccountProfile
+        key={`${accountId}:${accountTab}`}
         id={accountId}
+        initialTab={accountTab}
         onClose={() => setAccountId(null)}
         edit={(a) => setEditor({ type: "account", record: a })}
+        createWork={newWork}
         openItem={openItem}
         navigate={(page) => {
           if (page === "Brand Onboarding") {
@@ -787,20 +780,20 @@ function Workspace() {
             navigate(page, "brands");
           } else navigate(page);
         }}
-      />
-      <WorkDetail
+      />}
+      {selected && <WorkDetail
         key={selected?.id}
         selected={selected}
         onClose={() => setSelected(null)}
         edit={(r, k) => setEditor({ type: k, record: r })}
         openAccount={openAccount}
         openLinkedCase={(c) => openItem(c, "cases")}
-      />
-      <EditorDialog
+      />}
+      {editor && <EditorDialog
         key={editor ? editor.type + (editor.record?.id || "new") : "closed"}
         editor={editor}
         onClose={() => setEditor(null)}
-      />
+      />}
       <Dialog open={search} onOpenChange={setSearch}>
         <DialogContent className="search-dialog">
           <DialogTitle className="sr-only">Search all workspaces</DialogTitle>
@@ -867,8 +860,8 @@ function Workspace() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => {
-              setData((d) => ({ ...d, notificationsRead: true }));
+            onClick={async () => {
+              if (!(await setData((d) => ({ ...d, notificationsRead: true })))) return;
               toast.success("All notifications marked read");
             }}
           >
@@ -982,7 +975,7 @@ function Workspace() {
             ))}
           </div>
           <div className="info-callout">
-            Changes are saved in this browser. Files are references only. All
+            {serverMode ? "Changes are saved in the shared local database." : "Changes are saved in this browser."} Files are references only. All
             integrations and approvals are simulated.
           </div>
           <Button
@@ -996,6 +989,6 @@ function Workspace() {
           </Button>
         </DialogContent>
       </Dialog>
-    </div>
+    </div></>
   );
 }

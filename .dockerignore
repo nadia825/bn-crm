@@ -12,3 +12,7 @@ out
 coverage
 .DS_Store
 documents
+.local-data
+*.sqlite*
+backups
+outputs

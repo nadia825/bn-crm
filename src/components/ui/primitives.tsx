@@ -22,9 +22,9 @@ export function Badge({
       ? "green"
       : /Urgent|Rejected|Aborted/.test(s)
         ? "red"
-        : /High|Hold|Waiting|Review|Pending/.test(s)
+        : /High|Hold|Waiting|Review|Pending|Onboarding/.test(s)
           ? "amber"
-          : /New|Open|Progress|Onboarding|Negotiation/.test(s)
+          : /New|Open|Progress|Negotiation/.test(s)
             ? "purple"
             : "gray";
   return (
@@ -34,18 +34,4 @@ export function Badge({
     </span>
   );
 }
-export function Select({
-  options,
-  label,
-  ...props
-}: React.ComponentProps<"select"> & { options: string[]; label?: string }) {
-  return (
-    <select className="input select" aria-label={label} {...props}>
-      {options.map((o) => (
-        <option key={o} value={o}>
-          {o}
-        </option>
-      ))}
-    </select>
-  );
-}
+export { Select } from "./select";

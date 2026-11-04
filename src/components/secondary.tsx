@@ -1,4 +1,5 @@
 "use client";
+import { SupplierProvisionalNotice } from "./supplier-provisional";
 import { useState } from "react";
 import {
   Cylinder as BarrelIcon,
@@ -42,7 +43,7 @@ export function Contacts({
   openAccount: (a: Account) => void;
   workspace?: WorkspaceId;
 }) {
-  const { data } = useStore();
+  const { data } = useStore((s) => ({ data: s.data }));
   const [query, setQuery] = useState("");
   const [manager, setManager] = useState("All managers");
   const rows = scopedAccounts(data, workspace)
@@ -129,7 +130,7 @@ export function Barrels({
 }: {
   openAccount: (a: Account) => void;
 }) {
-  const { data, setData, can, resetDemo } = useStore();
+  const { data, setData, can, resetDemo } = useStore((s) => ({ data: s.data, setData: s.setData, can: s.can, resetDemo: s.resetDemo }));
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("All statuses");
   const [view, setView] = useState("list");
@@ -141,8 +142,8 @@ export function Barrels({
         .toLowerCase()
         .includes(query.toLowerCase()),
   );
-  const move = (id: string, status: string) => {
-    const saved = setData((d) => ({
+  const move = async (id: string, status: string) => {
+    const saved = await setData((d) => ({
       ...d,
       barrels: d.barrels.map((b) => (b.id === id ? { ...b, status } : b)),
     }));
@@ -161,6 +162,7 @@ export function Barrels({
           New barrel
         </Button>
       </SectionTitle>
+      <SupplierProvisionalNotice />
       <div className="onboarding-summary">
         <Card>
           <span className="tile-icon purple">
@@ -241,7 +243,7 @@ export function Barrels({
                 <tr>
                   <th>Barrel</th>
                   <th>Affiliate</th>
-                  <th>Supplier</th>
+                  <th>Supplier (provisional)</th>
                   <th>Retailer</th>
                   <th>Stock</th>
                   <th>Sales</th>
@@ -334,10 +336,13 @@ function BarrelForm({
   record: Barrel | null;
   close: () => void;
 }) {
-  const { data, setData, can, resetDemo } = useStore();
+  const { data: formSnapshot, saving } = useStore((s) => ({ data: s.data, saving: s.saving }));
+  const [baseline]=useState(formSnapshot);
+
+  const { data, setData, can, resetDemo } = useStore((s) => ({ data: s.data, setData: s.setData, can: s.can, resetDemo: s.resetDemo }));
   return (
     <form
-      onSubmit={(e) => {
+      onSubmit={async (e) => {
         e.preventDefault();
         const f = new FormData(e.currentTarget);
         const b: Barrel = {
@@ -351,12 +356,12 @@ function BarrelForm({
           status: String(f.get("status")),
         };
         if (!b.name) return;
-        const saved = setData((d) => ({
+        const saved = await setData((d) => ({
           ...d,
           barrels: record
             ? d.barrels.map((x) => (x.id === b.id ? b : x))
             : [b, ...d.barrels],
-        }));
+        }), baseline);
         if (!saved) return;
         toast.success(record ? "Barrel updated" : "Barrel created");
         close();
@@ -364,7 +369,8 @@ function BarrelForm({
     >
       <DialogTitle>{record ? "Edit barrel" : "New barrel"}</DialogTitle>
       <DialogDescription>
-        Link sourcing, stock, and partnership details.
+        Mock barrel details. Supplier links are illustrative while their
+        relationship with brands and affiliates is being defined.
       </DialogDescription>
       <div className="form-grid">
         <label className="field-label full">
@@ -373,8 +379,8 @@ function BarrelForm({
         </label>
         {(["affiliateId", "supplierId"] as const).map((k) => (
           <label className="field-label" key={k}>
-            {k === "affiliateId" ? "Affiliate" : "Supplier"}
-            <select name={k} className="input" defaultValue={record?.[k]}>
+            {k === "affiliateId" ? "Affiliate" : "Supplier (provisional)"}
+            <Select name={k} className="input" defaultValue={record?.[k]}>
               {data.accounts
                 .filter(
                   (a) =>
@@ -385,7 +391,7 @@ function BarrelForm({
                     {a.name}
                   </option>
                 ))}
-            </select>
+            </Select>
           </label>
         ))}
         <label className="field-label">
@@ -432,7 +438,7 @@ function BarrelForm({
           Cancel
         </Button>
         <Button
-          disabled={!can("barrels.edit", record || undefined)}
+          disabled={saving || !can("barrels.edit", record || undefined)}
           type="submit"
         >
           Save barrel
@@ -442,7 +448,7 @@ function BarrelForm({
   );
 }
 export function Reports() {
-  const { data } = useStore();
+  const { data } = useStore((s) => ({ data: s.data }));
   const [tab, setTab] = useState("Business overview");
   const [period, setPeriod] = useState("October 2026");
   const done = data.tasks.filter((t) => t.status === "Done").length;
@@ -629,8 +635,10 @@ export function Reports() {
   );
 }
 export function Settings() {
-  const { data, setData, can, resetDemo } = useStore();
+  const { data, setData, can, resetDemo, serverMode, legacyAvailable, importLegacy, saving } = useStore((s) => ({ data: s.data, setData: s.setData, can: s.can, resetDemo: s.resetDemo, serverMode: s.serverMode, legacyAvailable: s.legacyAvailable, importLegacy: s.importLegacy, saving: s.saving }));
   const [reset, setReset] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [workspaceBase,setWorkspaceBase]=useState(data.workspace);
   return (
     <>
       <SectionTitle
@@ -644,12 +652,14 @@ export function Settings() {
             subtitle="Your shared home for relationships and operations"
           />
           <form
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault();
               const f = new FormData(e.currentTarget);
               const workspace = String(f.get("workspace")).trim();
               if (workspace) {
-                setData((d) => ({ ...d, workspace }));
+                if(serverMode&&data.workspace!==workspaceBase){toast.error("The organization name changed in another session. Reopen Settings before saving.");return;}
+                if (!(await setData((d) => ({ ...d, workspace })))) return;
+                setWorkspaceBase(workspace);
                 toast.success("Organization settings saved");
               }
             }}
@@ -663,7 +673,7 @@ export function Settings() {
               <Input disabled value="Olivia Parker" />
             </label>
             <div className="dialog-footer">
-              <Button type="submit">
+              <Button disabled={saving} type="submit">
                 <Save size={15} />
                 Save changes
               </Button>
@@ -693,11 +703,11 @@ export function Settings() {
                 type="checkbox"
                 role="switch"
                 checked={data.settings[k]}
-                onChange={(e) => {
-                  setData((d) => ({
+                onChange={async (e) => {
+                  if (!(await setData((d) => ({
                     ...d,
                     settings: { ...d.settings, [k]: e.target.checked },
-                  }));
+                  })))) return;
                   toast.success("Preference updated");
                 }}
               />
@@ -727,41 +737,39 @@ export function Settings() {
         <Card className="settings-card">
           <PanelHeading
             title="Prototype & data"
-            subtitle="BN CRM v0 · Browser-local persistence"
+            subtitle={serverMode ? "BN CRM v0 · Shared local SQLite database" : "BN CRM v0 · Browser-local persistence"}
           />
           <div className="info-callout">
             <ShieldCheck size={18} />
             <span>
-              All records are fictional. There is no authentication, backend,
-              email delivery, or live Bottle Nexus integration.
+              All records are fictional. {serverMode ? "A local API enforces demo roles and workflow rules. Identity switching is a simulation, without real authentication." : "This browser demo has no backend or authentication."} Email delivery and live Bottle Nexus integration remain mocked.
             </span>
           </div>
           <p className="muted">
-            Data stays in this browser. Resetting restores the original sample
-            records and removes your local edits.
+            {serverMode ? "All local sessions use the same database. Data survives container restarts. Resetting replaces shared business records for everyone; audit history is retained." : "Data stays in this browser. Resetting restores sample records and removes local edits."}
           </p>
-          <Button variant="outline" onClick={() => setReset(true)}>
+          <Button disabled={saving} variant="outline" onClick={() => setReset(true)}>
             <RotateCcw size={15} />
             Reset demo data
           </Button>
+          {serverMode && legacyAvailable && <div className="spaced"><p>Your previous browser demo data is preserved separately. A System Admin can import it before the shared database's first change.</p><Button variant="outline" disabled={saving} onClick={()=>setImporting(true)}>Import previous browser data</Button></div>}
         </Card>
       </div>
       <Dialog open={reset} onOpenChange={setReset}>
         <DialogContent>
           <DialogTitle>Reset all three workspaces?</DialogTitle>
           <DialogDescription>
-            This removes local edits across Brands, Affiliates, and Operations
-            and restores all fictional sample records. This action cannot be
-            undone.
+            {serverMode ? "This replaces shared business records for every local session across Brands, Affiliates, and Operations. Audit history is retained. Your previous browser demo data stays separate." : "This removes browser edits across all three workspaces and restores fictional sample records."} This action cannot be undone.
           </DialogDescription>
           <div className="dialog-footer">
             <Button variant="outline" onClick={() => setReset(false)}>
               Keep my changes
             </Button>
             <Button
+              disabled={saving}
               variant="destructive"
-              onClick={() => {
-                resetDemo();
+              onClick={async () => {
+                if (!(await resetDemo())) return;
                 setReset(false);
                 toast.success("Demo workspace restored");
               }}
@@ -771,6 +779,11 @@ export function Settings() {
           </div>
         </DialogContent>
       </Dialog>
+      <Dialog open={importing} onOpenChange={setImporting}><DialogContent>
+        <DialogTitle>Import previous browser demo data?</DialogTitle>
+        <DialogDescription>This replaces the initial shared sample records with fictional data from this browser. It is available only before the database's first change. The original browser copy is preserved.</DialogDescription>
+        <div className="dialog-footer"><Button variant="outline" onClick={()=>setImporting(false)}>Cancel</Button><Button disabled={saving} onClick={async()=>{if(await importLegacy()){setImporting(false);toast.success("Browser demo imported into the local database");}}}>Import into shared database</Button></div>
+      </DialogContent></Dialog>
     </>
   );
 }

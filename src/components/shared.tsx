@@ -147,7 +147,7 @@ export function Toolbar({
   setView?: (s: string) => void;
   children?: React.ReactNode;
 }) {
-  const { data } = useStore();
+  const { data } = useStore((s) => ({ data: s.data }));
   return (
     <div className="toolbar">
       <SearchField value={query} onChange={setQuery} />

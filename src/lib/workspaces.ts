@@ -61,7 +61,10 @@ export const workspaceNavigation: Record<WorkspaceId, NavigationGroup[]> = {
     },
     {
       section: "Partners & barrels",
-      items: [item("Supplier Pipeline"), item("Barrel Management")],
+      items: [
+        item("Supplier Pipeline", "Suppliers (provisional)"),
+        item("Barrel Management"),
+      ],
     },
   ],
 };

@@ -1,4 +1,6 @@
 "use client";
+import { todayDate } from "@/lib/dates";
+import { SupplierProvisionalNotice } from "./supplier-provisional";
 import { useState } from "react";
 import { Paperclip, Plus, Save } from "lucide-react";
 import { useStore } from "@/lib/store";
@@ -33,6 +35,8 @@ export type Editor =
       type: "tasks" | "cases";
       record?: WorkItem;
       accountScope?: Account["type"];
+      accountId?: string;
+      caseId?: string;
     };
 export function EditorDialog({
   editor,
@@ -61,7 +65,10 @@ function AccountForm({
   editor: Extract<Editor, { type: "account" }>;
   onClose: () => void;
 }) {
-  const { data, setData, actor, can } = useStore();
+  const { data: formSnapshot, saving } = useStore((s) => ({ data: s.data, saving: s.saving }));
+  const [baseline]=useState(formSnapshot);
+
+  const { data, setData, actor, can } = useStore((s) => ({ data: s.data, setData: s.setData, actor: s.actor, can: s.can }));
   const a = editor.record;
   const [type, setType] = useState<Account["type"]>(
     a?.type || editor.accountType || "Corporate Brand",
@@ -79,7 +86,7 @@ function AccountForm({
           ? "New"
           : "Onboarding"),
   );
-  const save = (e: React.FormEvent<HTMLFormElement>) => {
+  const save = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
     const name = String(f.get("name")).trim(),
@@ -139,12 +146,12 @@ function AccountForm({
       verification: a?.verification || "Pending",
       approval: a?.approval || "Not submitted",
     };
-    const saved = setData((d) => ({
+    const saved = await setData((d) => ({
       ...d,
       accounts: a
         ? d.accounts.map((x) => (x.id === a.id ? next : x))
         : [next, ...d.accounts],
-    }));
+    }), baseline);
     if (!saved) return;
     toast.success(a ? "Account updated" : "Account created");
     onClose();
@@ -159,12 +166,13 @@ function AccountForm({
             : editor.lockType && type === "Affiliate"
               ? "Create an affiliate"
               : editor.lockType && type === "Supplier"
-                ? "Create a supplier"
+                ? "Create a mock supplier"
                 : "Create a new account"}
       </DialogTitle>
       <DialogDescription>
         Build a lasting relationship, starting with the essentials.
       </DialogDescription>
+      {type === "Supplier" && <SupplierProvisionalNotice />}
       {duplicates.length > 0 && (
         <div className="duplicate-warning">
           Possible duplicate: {duplicates.map((x) => x.name).join(", ")}. Review
@@ -311,7 +319,7 @@ function AccountForm({
             type="date"
             required
             name="followUp"
-            defaultValue={a?.followUp || "2026-10-29"}
+            defaultValue={a?.followUp || todayDate()}
           />
         </label>
         <div className="field-label full">
@@ -354,7 +362,7 @@ function AccountForm({
         <Button type="button" variant="outline" onClick={onClose}>
           Cancel
         </Button>
-        <Button type="submit">
+        <Button disabled={saving} type="submit">
           <Save size={15} />
           {a
             ? "Save changes"
@@ -363,7 +371,7 @@ function AccountForm({
               : editor.lockType && type === "Affiliate"
                 ? "Create affiliate"
                 : editor.lockType && type === "Supplier"
-                  ? "Create supplier"
+                  ? "Create mock supplier"
                   : "Create account"}
         </Button>
       </div>
@@ -377,12 +385,15 @@ function WorkForm({
   editor: Exclude<Editor, { type: "account" }>;
   onClose: () => void;
 }) {
-  const { data, setData, actor, can } = useStore();
+  const { data: formSnapshot, saving } = useStore((s) => ({ data: s.data, saving: s.saving }));
+  const [baseline]=useState(formSnapshot);
+
+  const { data, setData, actor, can } = useStore((s) => ({ data: s.data, setData: s.setData, actor: s.actor, can: s.can }));
   const r = editor.record;
   const isCase = editor.type === "cases";
   const [files, setFiles] = useState(r?.attachments || []);
-  const [accountId, setAccountId] = useState(r?.accountId || "");
-  const save = (e: React.FormEvent<HTMLFormElement>) => {
+  const [accountId, setAccountId] = useState(r?.accountId || editor.accountId || (data.accounts.filter((a) => !editor.accountScope || a.type === editor.accountScope).length === 1 ? data.accounts.filter((a) => !editor.accountScope || a.type === editor.accountScope)[0].id : ""));
+  const save = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
     const title = String(f.get("title")).trim();
@@ -426,7 +437,7 @@ function WorkForm({
       reminder: r?.reminder || "On due date",
     };
     const kind = editor.type;
-    const saved = setData((d) => ({
+    const saved = await setData((d) => ({
       ...d,
       ...(isCase && r && r.accountId !== item.accountId
         ? {
@@ -449,7 +460,7 @@ function WorkForm({
       [kind]: r
         ? d[kind].map((x) => (x.id === r.id ? item : x))
         : [item, ...d[kind]],
-    }));
+    }), baseline);
     if (!saved) return;
     toast.success(
       r ? "Changes saved" : isCase ? "Case created" : "Work request created",
@@ -457,7 +468,8 @@ function WorkForm({
     onClose();
   };
   return (
-    <form onSubmit={save}>
+    <form className="work-editor" onSubmit={save}>
+      <div className="work-editor-header">
       <DialogTitle>
         {r
           ? "Edit " + (isCase ? "support case" : "work request")
@@ -470,7 +482,8 @@ function WorkForm({
           ? "Give your team the context to resolve this request."
           : "One clear request. The right owner. A shared next step."}
       </DialogDescription>
-      <div className="form-grid">
+      </div>
+      <div className="work-editor-body"><div className="form-grid">
         <label className="field-label full">
           Summary
           <Input
@@ -486,9 +499,8 @@ function WorkForm({
           />
         </label>
         <label className="field-label full">
-          Description
+          Description (optional)
           <Textarea
-            required
             name="description"
             defaultValue={r?.description}
             placeholder="Add context, expected outcome, and relevant details…"
@@ -496,7 +508,7 @@ function WorkForm({
         </label>
         <label className="field-label full">
           Related account
-          <select
+          <Select
             required
             name="accountId"
             className="input"
@@ -515,56 +527,7 @@ function WorkForm({
                   {a.name} · {a.type}
                 </option>
               ))}
-          </select>
-        </label>
-        {!isCase && (
-          <label className="field-label full">
-            Linked support case (optional)
-            <select
-              name="caseId"
-              className="input"
-              key={accountId}
-              defaultValue={r?.accountId === accountId ? r.caseId || "" : ""}
-            >
-              <option value="">No linked case</option>
-              {data.cases
-                .filter((c) => c.accountId === accountId)
-                .map((c) => (
-                  <option value={c.id} key={c.id}>
-                    {c.id} · {c.title}
-                  </option>
-                ))}
-            </select>
-          </label>
-        )}
-        <label className="field-label">
-          Category
-          <Select
-            name="category"
-            defaultValue={
-              r?.category ||
-              (actor.roles.includes("Finance") ? "Billing" : undefined)
-            }
-            options={
-              isCase
-                ? actor.roles.length === 1 && actor.roles.includes("Finance")
-                  ? ["Billing"]
-                  : [
-                      "Fulfillment",
-                      "Integration",
-                      "Inventory",
-                      "Billing",
-                      "Customer Request",
-                    ]
-                : [
-                    "Brand Operations",
-                    "Integration",
-                    "Barrel Picks",
-                    "Logistics",
-                    "Account Management",
-                  ]
-            }
-          />
+          </Select>
         </label>
         <label className="field-label">
           Assignee
@@ -597,7 +560,60 @@ function WorkForm({
             type="date"
             required
             name="due"
-            defaultValue={r?.due || "2026-10-29"}
+            defaultValue={r?.due || todayDate()}
+          />
+        </label>
+      </div>
+      <details className="work-editor-options" open={r ? true : undefined}>
+        <summary>More options · category, status & files</summary>
+        <div className="form-grid">
+        {!isCase && (
+          <label className="field-label full">
+            Linked support case (optional)
+            <Select
+              name="caseId"
+              className="input"
+              key={accountId}
+              defaultValue={r?.accountId === accountId ? r.caseId || "" : editor.accountId === accountId ? editor.caseId || "" : ""}
+            >
+              <option value="">No linked case</option>
+              {data.cases
+                .filter((c) => c.accountId === accountId)
+                .map((c) => (
+                  <option value={c.id} key={c.id}>
+                    {c.id} · {c.title}
+                  </option>
+                ))}
+            </Select>
+          </label>
+        )}
+        <label className="field-label">
+          Category
+          <Select
+            name="category"
+            defaultValue={
+              r?.category ||
+              (isCase && actor.roles.includes("Finance") ? "Billing" : undefined)
+            }
+            options={
+              isCase
+                ? actor.roles.length === 1 && actor.roles.includes("Finance")
+                  ? ["Billing"]
+                  : [
+                      "Fulfillment",
+                      "Integration",
+                      "Inventory",
+                      "Billing",
+                      "Customer Request",
+                    ]
+                : [
+                    "Brand Operations",
+                    "Integration",
+                    "Barrel Picks",
+                    "Logistics",
+                    "Account Management",
+                  ]
+            }
           />
         </label>
         <label className="field-label full">
@@ -650,12 +666,14 @@ function WorkForm({
             </span>
           ))}
         </div>
+        </div>
+      </details>
       </div>
       <div className="dialog-footer">
         <Button type="button" variant="outline" onClick={onClose}>
           Cancel
         </Button>
-        <Button type="submit">
+        <Button disabled={saving} type="submit">
           <Plus size={15} />
           {r ? "Save changes" : isCase ? "Create case" : "Create request"}
         </Button>

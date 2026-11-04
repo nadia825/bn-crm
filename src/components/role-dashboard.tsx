@@ -1,4 +1,6 @@
 "use client";
+import { DailyActions } from "./daily-actions";
+import { todayDate } from "@/lib/dates";
 import { useState } from "react";
 import {
   ArrowRight,
@@ -34,6 +36,7 @@ export function RoleDashboard({
   openItem,
   newWork,
   newAccount,
+  reviewApproval,
 }: {
   workspace: WorkspaceId;
   navigate: (p: string) => void;
@@ -41,8 +44,9 @@ export function RoleDashboard({
   openItem: (i: WorkItem, k: "tasks" | "cases") => void;
   newWork: () => void;
   newAccount: () => void;
+  reviewApproval: (a: Account) => void;
 }) {
-  const { data, actor, can } = useStore();
+  const { data, actor, can } = useStore((s) => ({ data: s.data, actor: s.actor, can: s.can }));
   const go = (page: string) =>
     navigate(canPage(actor, page, data) ? page : "All Accounts");
   const roles = actor.roles;
@@ -233,7 +237,7 @@ export function RoleDashboard({
                 primary === "System Admin"
                   ? data.users.length
                   : primary === "Sales Manager"
-                    ? clients.filter((a) => a.followUp <= "2026-10-29").length
+                    ? clients.filter((a) => a.followUp <= todayDate()).length
                     : cases.length,
               page:
                 primary === "System Admin"
@@ -279,6 +283,7 @@ export function RoleDashboard({
           </Button>
         )}
       </SectionTitle>
+      <DailyActions workspace={workspace} openAccount={openAccount} openItem={openItem} reviewApproval={reviewApproval} />
       <div className="workspace-context-bar">
         <span>
           <ShieldCheck size={14} />
@@ -571,9 +576,9 @@ export function RoleDashboard({
       <div className="role-demo-note">
         <ShieldCheck size={15} />
         <span>
-          Role behavior is simulated in this browser. Module access, record
-          scope, and mutations are checked by the mock application layer; this
-          is not production authentication.
+          Demo identities simulate business roles. Module access, record scope and
+          workflow checks follow the selected identity. This is not production
+          authentication.
         </span>
       </div>
     </>
